@@ -4,7 +4,7 @@ OODA_WRITEDIR ?= $(CURDIR):/tmp
 OO_LIST_AMBIENT_QUOTA ?= 8589934592
 BIN := bin/oodream
 REPO_NAME := oodream
-VER := 0.4.1
+VER := 0.5.0
 SRC := $(shell find anchor.oo cli core tests -name '*.oo')
 ENV := OO_LIST_AMBIENT_QUOTA=$(OO_LIST_AMBIENT_QUOTA) OODA_FS_READDIR=$(OODA_READDIR):/tmp OODA_FS_WRITEDIR=$(OODA_WRITEDIR) OODA_NO_JAIL=1
 export OODA_COMPILER OODA_FS_READDIR OODA_FS_WRITEDIR OODA_NO_JAIL OO_LIST_AMBIENT_QUOTA
@@ -115,6 +115,9 @@ test: $(BIN)
 	@./$(BIN) --self-test | grep -q "PASS" && echo "PASS: --self-test"
 	@./$(BIN) --json | grep -q '"status":"pass"' && echo "PASS: --json"
 	@$(ENV) ./$(BIN) scan . | grep -q "verdict=pass" && echo "PASS: live scan verdict"
+	@./$(BIN) models | grep -q '"model":"' && echo "PASS: models resolves LLM config"
+	@$(ENV) ./$(BIN) infer "cross-domain bridges" | grep -q "verdict=pass" && echo "PASS: infer dispatches over TcpCap"
+	@$(ENV) ./$(BIN) infer | grep -q "verdict=pass" && echo "PASS: infer default prompt"
 	@./$(BIN) --zzz-9 > /dev/null 2>&1; test $$? -eq 2 && echo "PASS: fail-closed --zzz-9 (exit 2)"
 	@./$(BIN) -x9 > /dev/null 2>&1; test $$? -eq 2 && echo "PASS: fail-closed -x9 (exit 2)"
 	@./$(BIN) --version=0 > /dev/null 2>&1; test $$? -eq 2 && echo "PASS: fail-closed --version=0 (exit 2)"

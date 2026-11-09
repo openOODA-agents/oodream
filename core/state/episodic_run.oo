@@ -12,7 +12,7 @@ import "core/sec/path_guard.oo";
 
 fn oodrm_art_dir(args: List[String]) -> String {
     let mut i: Int = 0;
-    while i + 1 < list_len(args) {
+    while (i + 1) < list_len(args) {
         if list_get(args, i) == "dream" {
             let nxt: String = list_get(args, i + 1);
             if !str_starts_with(nxt, "-") {
@@ -27,7 +27,7 @@ fn oodrm_art_dir(args: List[String]) -> String {
 pub fn oodrm_run_dream(fs_r: &FsReadCap, fs_w: &FsWriteCap, args: List[String]) -> Int {
     let dir: String = oodrm_art_dir(args);
     if !oodrm_path_ok(dir) {
-        println("oomem dream: REFUSED path " + dir);
+        println("oodream dream: REFUSED path " + dir);
         return 2;
     }
     let _ = oo_fs_mkdir(fs_w, dir);
@@ -63,10 +63,10 @@ pub fn oodrm_run_dream(fs_r: &FsReadCap, fs_w: &FsWriteCap, args: List[String]) 
     let ok: Bool = list_len(back) == list_len(items) && seen && list_len(man) >= 2 &&
         list_len(before) >= 0;
     if ok {
-        println("oomem dream: PASS dir=" + dir + " artifact=" + art_name +
+        println("oodream dream: PASS dir=" + dir + " artifact=" + art_name +
             " items=" + list_len(back).to_string() + " manifest=" + man_name);
         return 0;
     }
-    println("oomem dream: FAIL round-trip mismatch dir=" + dir);
+    println("oodream dream: FAIL round-trip mismatch dir=" + dir);
     return 1;
 }

@@ -11,7 +11,9 @@
 
 import "anchor.oo";
 import "cli/persona/anchor.oo";
+import "cli/cli.oo";
 import "core/sec/path_guard.oo";
+import "oostd/core/app/agent/pair_programmer.oo";
 
 fn assert_true(cond: Bool, label: String) -> Int {
     if cond {
@@ -77,11 +79,37 @@ fn test_episodic_persistence(fs_r: &FsReadCap, fs_w: &FsWriteCap) -> Int {
     return f;
 }
 
+fn test_llm_modes() -> Int {
+    let mut f: Int = 0;
+    f = f + assert_true(oodrm_cap_need("infer") == ((1 << 17) | (1 << 28)) &&
+        oodrm_cap_need("models") == (1 << 28), "infer/models capability masks");
+    f = f + assert_true(oodrm_frame_op_of("infer") == 5 && oodrm_frame_op_of("models") == 6,
+        "infer/models frame ops");
+    f = f + assert_true(oodrm_warrant_rights("infer") == 193 && oodrm_warrant_rights("models") == 65,
+        "infer/models warrant rights");
+    f = f + assert_true(oodrm_mode(list_push(list_new(), "infer")) == "infer" &&
+        oodrm_mode(list_push(list_new(), "models")) == "models", "mode dispatch infer/models");
+    let mut il: List[String] = list_new();
+    il = list_push(il, "infer");
+    il = list_push(il, "bridge concepts");
+    f = f + assert_true(oodrm_bad_arg(il) == 0 - 1, "infer prompt operand admitted");
+    f = f + assert_true(oodrm_bad_arg(list_push(list_new(), "bogus-zz9")) == 0, "bogus token refused");
+    f = f + assert_true(oodrm_about_sub_known("infer") && oodrm_about_sub_known("models"),
+        "about knows infer and models");
+    let pj: String = agent_llm_redact_build_json("m", "hello", true);
+    f = f + assert_true(str_contains(pj, "\"prompt\":\"hello\"") &&
+        str_contains(pj, "\"model\":\"m\""), "llm payload pins model and prompt");
+    let rj: String = agent_llm_redact_build_json("m", "sk-secret", true);
+    f = f + assert_true(str_contains(rj, "[REDACTED_PROMPT]"), "llm payload redacts secret tokens");
+    return f;
+}
+
 fn main(fs_r: &FsReadCap, fs_w: &FsWriteCap) -> Int {
     println("=== oodream Functional Test Suite (Axis 1) ===");
     let mut failures: Int = 0;
     failures = failures + test_store_core(fs_r);
     failures = failures + test_sec_and_ipc();
+    failures = failures + test_llm_modes();
     failures = failures + test_episodic_persistence(fs_r, fs_w);
     if failures == 0 {
         println("oodream functional tests: ALL PASSED");

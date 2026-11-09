@@ -25,6 +25,8 @@ pub fn oodrm_frame_key(badge: Int) -> Int {
 pub fn oodrm_frame_op_of(mode: String) -> Int {
     if mode == "scan" { return 1; }
     if mode == "synthesize" { return 2; }
+    if mode == "infer" { return 5; }
+    if mode == "models" { return 6; }
     return 4;
 }
 

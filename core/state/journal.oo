@@ -7,7 +7,7 @@
 // Beats:
 //   1. Fold page line counts into the bounded journal with eviction.
 //   2. Recall entries and verify checksum integrity.
-//   3. Emit the final verdict.
+//   3. Dispatch self-hosted LLM inference (infer/models) over TcpCap+EnvCap and emit the final verdict.
 
 import "metrics.oo";
 import "scan.oo";
@@ -68,5 +68,38 @@ pub fn oodrm_run_domain(fs: &FsReadCap, env: &EnvCap, tcp: &TcpCap, root: String
     let mut _v: String = "verdict=fail";
     if oodrm_verify(m) && chars_len(resp) > 0 { _v = "verdict=pass"; }
     println(_v);
+    return 0;
+}
+
+fn oodrm_infer_prompt(args: List[String]) -> String {
+    let mut i: Int = 0;
+    while i < list_len(args) {
+        if list_get(args, i) == "infer" && (i + 1) < list_len(args) {
+            let nxt: String = list_get(args, i + 1);
+            if !str_starts_with(nxt, "-") { return nxt; }
+        }
+        i = i + 1;
+    }
+    return "oodream cross-domain connection discovery";
+}
+
+pub fn oodrm_run_infer(tcp: &TcpCap, env: &EnvCap, args: List[String]) -> Int {
+    let cfg: AgentLlmConfig = agent_llm_config_resolve(env);
+    let prompt: String = oodrm_infer_prompt(args);
+    let resp: String = agent_llm_infer(tcp, env, prompt);
+    println("oodream infer: model=" + cfg.model + " port=" + cfg.port.to_string());
+    println(resp);
+    let mut _v: String = "verdict=fail";
+    if chars_len(resp) > 0 { _v = "verdict=pass"; }
+    println(_v);
+    return 0;
+}
+
+pub fn oodrm_run_models(env: &EnvCap) -> Int {
+    let cfg: AgentLlmConfig = agent_llm_config_resolve(env);
+    println("{\"host\":\"" + cfg.host + "\",\"backup_host\":\"" + cfg.backup_host +
+        "\",\"port\":" + cfg.port.to_string() + ",\"model\":\"" + cfg.model +
+        "\",\"fast_mode\":" + cfg.fast_mode.to_string() + "}");
+    println("verdict=pass");
     return 0;
 }

@@ -31,6 +31,8 @@ pub fn oodrm_mode(args: List[String]) -> String {
     if oodrm_has(args, "--tui") || oodrm_has(args, "theme") { return "tui"; }
     if oodrm_has(args, "scan") { return "scan"; }
     if oodrm_has(args, "synthesize") { return "synthesize"; }
+    if oodrm_has(args, "infer") { return "infer"; }
+    if oodrm_has(args, "models") { return "models"; }
     if oodrm_has(args, "dream") { return "dream"; }
     if oodrm_has(args, "about") { return "about"; }
     if oodrm_has(args, "status") { return "status"; }
@@ -42,7 +44,7 @@ pub fn oodrm_mode(args: List[String]) -> String {
 pub fn oodrm_scan_root(args: List[String]) -> String {
     let mut i: Int = 0;
     while i < list_len(args) {
-        if list_get(args, i) == "scan" && i + 1 < list_len(args) {
+        if list_get(args, i) == "scan" && (i + 1) < list_len(args) {
             let nxt: String = list_get(args, i + 1);
             if !str_starts_with(nxt, "-") { return nxt; }
         }
@@ -56,11 +58,12 @@ pub fn oodrm_bad_arg(args: List[String]) -> Int {
     let mut wasv: Bool = false;
     while i < list_len(args) {
         let a: String = list_get(args, i);
-        let pos: Bool = a == "scan" || a == "synthesize" || a == "dream" || a == "theme" || a == "--tui";
+        let pos: Bool = a == "scan" || a == "synthesize" || a == "dream" || a == "infer" ||
+            a == "theme" || a == "--tui";
         let known: Bool = pos || a == "-h" || a == "--help" || a == "-v" ||
             a == "--version" || a == "--json" || a == "--self-test" ||
             str_starts_with(a, "--tui=") ||
-            a == "about" || a == "status" || a == "verify" || a == "inspect";
+            a == "about" || a == "status" || a == "verify" || a == "inspect" || a == "models";
         if !known && !wasv { return i; }
         wasv = pos;
         i = i + 1;
@@ -70,7 +73,7 @@ pub fn oodrm_bad_arg(args: List[String]) -> Int {
 
 pub fn oodrm_print_help(name: String, ver: String, desc: String) -> Int {
     println(name + " " + ver + " - " + desc);
-    println("usage: " + name + " [status|verify|inspect|scan [dir]|synthesize|dream [dir]]");
+    println("usage: " + name + " [status|verify|inspect|scan [dir]|synthesize|dream [dir]|infer [prompt]|models]");
     println("       [--json] [--self-test] [--tui <theme>|theme <name>] [--help] [--version]");
     return 0;
 }

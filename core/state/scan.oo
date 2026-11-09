@@ -22,7 +22,7 @@ pub fn oodrm_join(dir: String, name: String) -> String {
     return dir + "/" + name;
 }
 
-pub fn oodrm_collect(fs: &FsReadCap, dir: String, depth: Int, acc: List[String]) -> List[String] {
+pub fn oodrm_collect(fs: &FsReadCap, depth: Int, dir: String, acc: List[String]) -> List[String] {
     let mut out: List[String] = acc;
     if depth > 6 { return out; }
     if !oo_fs_is_dir(fs, dir) { return out; }
@@ -34,7 +34,8 @@ pub fn oodrm_collect(fs: &FsReadCap, dir: String, depth: Int, acc: List[String])
         if name != "." && name != ".." && !oodrm_skip_dir(name) {
             let path: String = oodrm_join(dir, name);
             if oo_fs_is_dir(fs, path) {
-                out = oodrm_collect(fs, path, depth + 1, out);
+                let nd: Int = depth + 1;
+                out = oodrm_collect(fs, nd, path, out);
             } else {
                 if str_ends_with(name, ".oo") { out = list_push(out, path); }
             }
@@ -83,7 +84,7 @@ pub fn oodrm_sort_strings(items: List[String]) -> List[String] {
 
 pub fn oodrm_scan_files(fs: &FsReadCap, root: String) -> List[String] {
     let acc: List[String] = list_new();
-    if oo_fs_is_dir(fs, root) { return oodrm_sort_strings(oodrm_collect(fs, root, 0, acc)); }
+    if oo_fs_is_dir(fs, root) { return oodrm_sort_strings(oodrm_collect(fs, 0, root, acc)); }
     if oo_path_exists(fs, root) && str_ends_with(root, ".oo") { return list_push(acc, root); }
     return acc;
 }

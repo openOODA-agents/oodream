@@ -12,7 +12,7 @@
 import "cli/persona/meta.oo";
 
 pub fn oodrm_about_subs() -> String {
-    return "scan,synthesize,dream,theme,about,status,verify,inspect";
+    return "scan,synthesize,dream,infer,models,theme,about,status,verify,inspect";
 }
 
 pub fn oodrm_about_caps() -> String {
@@ -27,6 +27,8 @@ pub fn oodrm_about_sub_known(s: String) -> Bool {
     if s == "scan" { return true; }
     if s == "synthesize" { return true; }
     if s == "dream" { return true; }
+    if s == "infer" { return true; }
+    if s == "models" { return true; }
     if s == "about" { return true; }
     if s == "status" { return true; }
     if s == "verify" { return true; }

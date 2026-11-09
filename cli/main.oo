@@ -158,7 +158,7 @@ fn oodrm_tui(env: &EnvCap, gargs: List[String], name: String, ver: String) -> Re
     while i < list_len(gargs) {
         let a: String = list_get(gargs, i);
         if str_starts_with(a, "--tui=") { tn = str_slice(a, 6, chars_len(a)); }
-        if (a == "--tui" || a == "theme") && i + 1 < list_len(gargs) &&
+        if (a == "--tui" || a == "theme") && (i + 1) < list_len(gargs) &&
             !str_starts_with(list_get(gargs, i + 1), "-") {
             tn = list_get(gargs, i + 1);
         }
@@ -209,6 +209,8 @@ fn oodrm_modes(fs: &FsReadCap, fsw: &FsWriteCap, env: &EnvCap, tcp: &TcpCap, gar
         return Ok(oodrm_run_scan(fs, sroot));
     }
     if mode == "synthesize" { return Ok(oodrm_run_domain(fs, env, tcp, oodrm_scan_root(gargs))); }
+    if mode == "infer" { return Ok(oodrm_run_infer(tcp, env, gargs)); }
+    if mode == "models" { return Ok(oodrm_run_models(env)); }
     if !run_oodrm_selftest() {
         println("FAIL: " + name + " self-test failed");
         return Ok(1);
