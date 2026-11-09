@@ -1,0 +1,95 @@
+// # oodream CLI Argument & Render Helpers
+//
+// Logline: Subcommand detection and deterministic help/JSON rendering for the oodream CLI.
+//
+// Setup: Declared capability: None. Pure argument scanning and string building.
+//
+// Beats:
+//   1. Scan the argument list for flags, bare subcommands, and the scan root operand.
+//   2. Render help text and single-line JSON status deterministically.
+
+pub fn oodrm_has(args: List[String], flag: String) -> Bool {
+    let mut i: Int = 0;
+    while i < list_len(args) {
+        if list_get(args, i) == flag { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+pub fn oodrm_mode(args: List[String]) -> String {
+    if list_len(args) > 0 && list_get(args, 0) == "about" { return "about"; }
+    let mut ti: Int = 0;
+    while ti < list_len(args) {
+        if str_starts_with(list_get(args, ti), "--tui=") { return "tui"; }
+        ti = ti + 1;
+    }
+    if oodrm_has(args, "-h") || oodrm_has(args, "--help") { return "help"; }
+    if oodrm_has(args, "-v") || oodrm_has(args, "--version") { return "version"; }
+    if oodrm_has(args, "--json") && !oodrm_has(args, "--tui") && !oodrm_has(args, "theme") { return "json"; }
+    if oodrm_has(args, "--self-test") { return "selftest"; }
+    if oodrm_has(args, "--tui") || oodrm_has(args, "theme") { return "tui"; }
+    if oodrm_has(args, "scan") { return "scan"; }
+    if oodrm_has(args, "synthesize") { return "synthesize"; }
+    if oodrm_has(args, "dream") { return "dream"; }
+    if oodrm_has(args, "about") { return "about"; }
+    if oodrm_has(args, "status") { return "status"; }
+    if oodrm_has(args, "verify") { return "verify"; }
+    if oodrm_has(args, "inspect") { return "inspect"; }
+    return "default";
+}
+
+pub fn oodrm_scan_root(args: List[String]) -> String {
+    let mut i: Int = 0;
+    while i < list_len(args) {
+        if list_get(args, i) == "scan" && i + 1 < list_len(args) {
+            let nxt: String = list_get(args, i + 1);
+            if !str_starts_with(nxt, "-") { return nxt; }
+        }
+        i = i + 1;
+    }
+    return ".";
+}
+
+pub fn oodrm_bad_arg(args: List[String]) -> Int {
+    let mut i: Int = 0;
+    let mut wasv: Bool = false;
+    while i < list_len(args) {
+        let a: String = list_get(args, i);
+        let pos: Bool = a == "scan" || a == "synthesize" || a == "dream" || a == "theme" || a == "--tui";
+        let known: Bool = pos || a == "-h" || a == "--help" || a == "-v" ||
+            a == "--version" || a == "--json" || a == "--self-test" ||
+            str_starts_with(a, "--tui=") ||
+            a == "about" || a == "status" || a == "verify" || a == "inspect";
+        if !known && !wasv { return i; }
+        wasv = pos;
+        i = i + 1;
+    }
+    return -1;
+}
+
+pub fn oodrm_print_help(name: String, ver: String, desc: String) -> Int {
+    println(name + " " + ver + " - " + desc);
+    println("usage: " + name + " [status|verify|inspect|scan [dir]|synthesize|dream [dir]]");
+    println("       [--json] [--self-test] [--tui <theme>|theme <name>] [--help] [--version]");
+    return 0;
+}
+
+pub fn oodrm_json(name: String, ver: String, cat: String, detail: Int, status: String) -> String {
+    let head: String = "{\"component\":\"" + name + "\",\"version\":\"" + ver;
+    let mid: String = "\",\"layer\":\"L7-agents\",\"category\":\"" + cat;
+    let tail: String = "\",\"detail\":" + detail.to_string() + ",\"status\":\"" + status;
+    return head + mid + tail + "\"}";
+}
+
+pub fn oodrm_basename(path: String) -> String {
+    let mut n: Int = chars_len(path);
+    if n > 1 && str_ends_with(path, "/") { n = n - 1; }
+    let mut i: Int = n - 1;
+    while i >= 0 {
+        if char_at(path, i) == "/" { return str_slice(path, i + 1, n); }
+        i = i - 1;
+    }
+    return str_slice(path, 0, n);
+}
+

@@ -1,0 +1,95 @@
+// # oodream Cross-Layer Warrant Delegation Chain
+//
+// Logline: Verify monotonic parent-to-subagent warrant attenuation under PQC seal.
+//
+// Setup: Imports mix64, warrant, attest, and capreg; pure Int/String checks.
+//
+// Beats:
+//   1. Extract rights, caps, badge, and epoch from the 64-bit cycle register.
+//   2. Issue a child warrant: strict cap subset, epoch+1, distinct scope badge.
+//   3. Seal the delegation bound to the parent Merkle-DAG root; verify mask == 7.
+
+import "core/ipc/warrant.oo";
+import "core/ipc/attest.oo";
+import "oostd/sec/capreg.oo";
+import "oostd/sec/delegate_grp/delegate.oo";
+import "oostd/sec/pqc.oo";
+
+type OodrmDeleg = struct {
+    magic: Int,
+    preg: Int,
+    creg: Int,
+    phash: Int,
+    pk: String,
+    sig: String,
+    mac: Int
+};
+
+pub fn oodrm_deleg_rights(reg: Int) -> Int {
+    return (reg >> 40) & 255;
+}
+
+pub fn oodrm_deleg_caps(reg: Int) -> Int {
+    return (reg) & ((1 << 32) - 1);
+}
+
+pub fn oodrm_deleg_issue(preg: Int, need: Int, badge: Int) -> Int {
+    return oo_cap_reg64_pack(oodrm_warrant_epoch(preg) + 1,
+        oodrm_deleg_rights(preg) & 247, badge,
+        oodrm_deleg_caps(preg) & need);
+}
+
+pub fn oodrm_deleg_mac(preg: Int, creg: Int, phash: Int) -> Int {
+    return oo_delegate_seal(phash, creg, (preg >> 40) & 255,
+        oo_pqc_sha3_round(preg, phash), oo_pqc_sha3_round(creg, 1));
+}
+
+pub fn oodrm_deleg_msg(preg: Int, creg: Int, phash: Int, mac: Int) -> String {
+    return "deleg|" + preg.to_string() + "|" + creg.to_string() +
+        "|" + phash.to_string() + "|" + mac.to_string();
+}
+
+pub fn oodrm_deleg_seal(signer: String, preg: Int, creg: Int,
+    phash: Int) -> OodrmDeleg {
+    let mac: Int = oodrm_deleg_mac(preg, creg, phash);
+    let kp: List[String] = oodrm_attest_keypair(oodrm_attest_seed(signer + "-deleg"));
+    let mut d: OodrmDeleg = OodrmDeleg { magic: 9421537, preg: preg, creg: creg,
+        phash: phash, pk: "", sig: "", mac: mac };
+    if list_len(kp) == 2 {
+        d.pk = list_get(kp, 0);
+        d.sig = crypto_mldsa65_sign_internal(list_get(kp, 1),
+            oodrm_deleg_msg(preg, creg, phash, mac), "");
+    }
+    return d;
+}
+
+pub fn oodrm_deleg_verify(d: OodrmDeleg) -> Int {
+    let mut bits: Int = 0;
+    if d.magic == 9421537 && oo_delegate_rights_ok(d.preg) &&
+        (oodrm_deleg_rights(d.preg) & 64) == 0 &&
+        (oodrm_deleg_rights(d.creg) & 8) == 0 &&
+        (oodrm_deleg_rights(d.creg) & oodrm_deleg_rights(d.preg)) ==
+            oodrm_deleg_rights(d.creg) &&
+        oo_delegate_caps_subset(oodrm_deleg_caps(d.creg),
+            oodrm_deleg_caps(d.preg)) &&
+        oo_delegate_epoch_ok(oodrm_warrant_epoch(d.preg) + 1,
+            oodrm_warrant_epoch(d.creg)) &&
+        oodrm_warrant_epoch(d.creg) == oodrm_warrant_epoch(d.preg) + 1 &&
+        oo_delegate_badge_ok((d.preg >> 32) & 255, (d.creg >> 32) & 255) &&
+        d.phash != 0 && d.mac != 0 &&
+        d.mac == oodrm_deleg_mac(d.preg, d.creg, d.phash) {
+        bits = bits | 1;
+    }
+    if chars_len(d.pk) == 3904 && chars_len(d.sig) == 6618 {
+        bits = bits | 2;
+    }
+    if crypto_mldsa65_verify_internal(d.pk, oodrm_deleg_msg(d.preg, d.creg,
+        d.phash, d.mac), d.sig) == "OK" {
+        bits = bits | 4;
+    }
+    return bits;
+}
+
+pub fn oodrm_deleg_ok(d: OodrmDeleg) -> Bool {
+    return oodrm_deleg_verify(d) == 7;
+}

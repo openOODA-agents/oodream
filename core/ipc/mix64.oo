@@ -1,0 +1,42 @@
+// # oodream 64-Bit Wrap Arithmetic & SplitMix64
+//
+// Logline: Emulates unsigned 64-bit wrap-add, wrap-mul, and SplitMix64 finalization.
+//
+// Setup: Declared capability: None. Pure Int arithmetic decomposed into safe limbs.
+//
+// Beats:
+//   1. Decompose operands into 32-bit add limbs and 16-bit multiply limbs.
+//   2. Recombine wrapped limbs through shift-or and carry propagation.
+//   3. Finalize the SplitMix64 mix used as the frame MAC primitive.
+
+import "oostd/sec/pqc.oo";
+
+pub fn oodrm_lshr(x: Int, n: Int) -> Int {
+    return (x >> n) & ((1 << (64 - n)) - 1);
+}
+
+pub fn oodrm_wadd(a: Int, b: Int) -> Int {
+    let sl: Int = (a & ((1 << 32) - 1)) + (b & ((1 << 32) - 1));
+    let sh: Int = oodrm_lshr(a, 32) + oodrm_lshr(b, 32) + (sl >> 32);
+    return (sh << 32) | (sl & ((1 << 32) - 1));
+}
+
+pub fn oodrm_wmul(a: Int, b: Int) -> Int {
+    let a0: Int = a & 65535;
+    let a1: Int = (a >> 16) & 65535;
+    let a2: Int = (a >> 32) & 65535;
+    let a3: Int = (a >> 48) & 65535;
+    let b0: Int = b & 65535;
+    let b1: Int = (b >> 16) & 65535;
+    let b2: Int = (b >> 32) & 65535;
+    let b3: Int = (b >> 48) & 65535;
+    let s0: Int = a0 * b0;
+    let s1: Int = a0 * b1 + a1 * b0;
+    let s2: Int = a0 * b2 + a1 * b1 + a2 * b0;
+    let s3: Int = a0 * b3 + a1 * b2 + a2 * b1 + a3 * b0;
+    return oodrm_wadd(oodrm_wadd(s0, s1 << 16), oodrm_wadd(s2 << 32, s3 << 48));
+}
+
+pub fn oodrm_sm64(x: Int) -> Int {
+    return oo_pqc_sha3_round(x, 0 - 7046029254386353131);
+}

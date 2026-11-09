@@ -1,0 +1,95 @@
+// # oodream Bounded .oo Tree Scanner
+//
+// Logline: Recursively collects .oo pages under a root with depth bounds and skip rules.
+//
+// Setup: Declared capability: FsRead. Reads directory entries and page text under the granted jail.
+//
+// Beats:
+//   1. Walk directories depth-bounded, skipping VCS, cache, and build directories.
+//   2. Sort collected paths deterministically by byte order.
+//   3. Read each page text for downstream domain analysis.
+
+pub fn oodrm_skip_dir(name: String) -> Bool {
+    if name == ".git" || name == ".github" { return true; }
+    if name == "bin" || name == "dist" { return true; }
+    if name == ".ooda-cache" || name == ".blackbox" { return true; }
+    return str_starts_with(name, ".");
+}
+
+pub fn oodrm_join(dir: String, name: String) -> String {
+    if chars_len(dir) == 0 { return name; }
+    if str_ends_with(dir, "/") { return dir + name; }
+    return dir + "/" + name;
+}
+
+pub fn oodrm_collect(fs: &FsReadCap, dir: String, depth: Int, acc: List[String]) -> List[String] {
+    let mut out: List[String] = acc;
+    if depth > 6 { return out; }
+    if !oo_fs_is_dir(fs, dir) { return out; }
+    let entries: List[String] = oo_fs_read_dir(fs, dir);
+    let mut i: Int = 0;
+    while i < list_len(entries) {
+        let name: String = list_get(entries, i);
+        i = i + 1;
+        if name != "." && name != ".." && !oodrm_skip_dir(name) {
+            let path: String = oodrm_join(dir, name);
+            if oo_fs_is_dir(fs, path) {
+                out = oodrm_collect(fs, path, depth + 1, out);
+            } else {
+                if str_ends_with(name, ".oo") { out = list_push(out, path); }
+            }
+        }
+    }
+    return out;
+}
+
+pub fn oodrm_str_lt(a: String, b: String) -> Bool {
+    let na: Int = chars_len(a);
+    let nb: Int = chars_len(b);
+    let mut i: Int = 0;
+    while i < na && i < nb {
+        let ca: Int = ord(char_at(a, i));
+        let cb: Int = ord(char_at(b, i));
+        if ca != cb { return ca < cb; }
+        i = i + 1;
+    }
+    return na < nb;
+}
+
+pub fn oodrm_insert_at(items: List[String], pos: Int, v: String) -> List[String] {
+    let mut out: List[String] = list_new();
+    let mut i: Int = 0;
+    while i < list_len(items) {
+        if i == pos { out = list_push(out, v); }
+        out = list_push(out, list_get(items, i));
+        i = i + 1;
+    }
+    if pos >= list_len(items) { out = list_push(out, v); }
+    return out;
+}
+
+pub fn oodrm_sort_strings(items: List[String]) -> List[String] {
+    let mut out: List[String] = list_new();
+    let mut i: Int = 0;
+    while i < list_len(items) {
+        let v: String = list_get(items, i);
+        let mut j: Int = 0;
+        while j < list_len(out) && oodrm_str_lt(list_get(out, j), v) { j = j + 1; }
+        out = oodrm_insert_at(out, j, v);
+        i = i + 1;
+    }
+    return out;
+}
+
+pub fn oodrm_scan_files(fs: &FsReadCap, root: String) -> List[String] {
+    let acc: List[String] = list_new();
+    if oo_fs_is_dir(fs, root) { return oodrm_sort_strings(oodrm_collect(fs, root, 0, acc)); }
+    if oo_path_exists(fs, root) && str_ends_with(root, ".oo") { return list_push(acc, root); }
+    return acc;
+}
+
+pub fn oodrm_read_page(fs: &FsReadCap, path: String) -> String {
+    let r: Result[String, String] = oo_read_file(fs, path);
+    if r.is_err() { return ""; }
+    return match r { Ok(s) => s, Err(_) => "" };
+}

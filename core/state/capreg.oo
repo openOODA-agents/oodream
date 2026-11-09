@@ -1,0 +1,45 @@
+// # oodream Explicit Capability Register
+//
+// Logline: 32 explicit capabilities (bits 0..31) and the single-cycle 64-bit capability register.
+//
+// Setup: Declared capability: None. Pure register arithmetic via std rt_caps_reg64.
+//
+// Beats:
+//   1. Map the repo's declared explicit capabilities to bits 0..31.
+//   2. Pack the 64-bit register: epoch[63:48] | rights[47:40] | badge[39:32] | caps_mask[31:0].
+//   3. Admit a caller through the 6-assert fail-closed reg64 gate, then attenuate
+//      registers for delegation.
+
+import "oostd/sec/capreg.oo";
+
+pub fn oodrm_cap_mask() -> Int { return (1 << 3) | (1 << 2) | (1 << 17) | (1 << 28); }
+pub fn oodrm_cap_badge() -> Int { return 10; }
+
+pub fn oodrm_cap_need(mode: String) -> Int {
+    if mode == "scan" { return 1 << 3; }
+    if mode == "synthesize" { return (1 << 3) | (1 << 17) | (1 << 28); }
+    if mode == "dream" { return (1 << 3) | (1 << 2); }
+    return 0;
+}
+
+pub fn oodrm_cap_reg64(epoch: Int, rights: Int) -> Int {
+    return oo_cap_reg64_pack(epoch, rights, oodrm_cap_badge(), oodrm_cap_mask());
+}
+
+pub fn oodrm_cap_admit(reg: Int, epoch: Int, req_rights: Int, req_caps: Int) -> Int {
+    if epoch < 0 || req_rights < 0 || req_rights > 255 { return 0 - 22; }
+    if epoch > 65535 { return 0 - 22; }
+    if req_caps < 0 { return 0 - 22; }
+    if req_caps > ((1 << 32) - 1) { return 0 - 22; }
+    if ((reg >> 48) & 65535) != (epoch & 65535) { return 0 - 13; }
+    if !oo_cap_reg64_check(reg, epoch, req_rights, req_caps) { return 0 - 13; }
+    return 0;
+}
+
+pub fn oodrm_cap_check(reg: Int, epoch: Int, rights: Int, need: Int) -> Bool {
+    return oodrm_cap_admit(reg, epoch, rights, need) == 0;
+}
+
+pub fn oodrm_cap_attenuate(reg: Int, rights: Int, badge: Int, caps: Int) -> Int {
+    return oo_cap_reg64_attenuate(reg, rights, badge, caps);
+}

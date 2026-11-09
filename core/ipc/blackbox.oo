@@ -1,0 +1,79 @@
+// # oodream Blackbox Flight-Recorder Seal & Replay Verifier
+//
+// Logline: Seals fault events bound to the register, frame MAC, and causal hash for replay.
+//
+// Setup: Declared capability: None. Pure Int/String arithmetic over attestation keypairs.
+//
+// Beats:
+//   1. Derive a deterministic trap code and replay digest per fault event.
+//   2. Seal PQC-signed recorder entries chained through the causal hash.
+//   3. Verify replay determinism and the ML-DSA-65 seal under mask == 7.
+
+import "attest.oo";
+import "oostd/sec/blackbox_grp/blackbox.oo";
+import "oostd/sec/audit.oo";
+import "oostd/sec/pqc.oo";
+
+type OodrmFlight = struct {
+    magic: Int, trap: Int, reg: Int, fmac: Int, phash: Int,
+    trace: Int, pk: String, sig: String
+};
+
+pub fn oodrm_bb_trap(op: Int, sig: Int) -> Int {
+    return (oo_pqc_sha3_round(op, sig) & 255) | 1;
+}
+
+pub fn oodrm_bb_trace(trap: Int, reg: Int, fmac: Int, phash: Int) -> Int {
+    return oo_blackbox_entry(trap, reg, fmac, phash);
+}
+
+pub fn oodrm_bb_link(prev: OodrmFlight) -> Int {
+    return oo_audit_link(prev.trace, prev.phash);
+}
+
+pub fn oodrm_bb_msg(trap: Int, reg: Int, fmac: Int, phash: Int,
+                 trace: Int) -> String {
+    return "bb|" + trap.to_string() + "|" + reg.to_string() + "|" +
+        fmac.to_string() + "|" + phash.to_string() + "|" +
+        trace.to_string();
+}
+
+pub fn oodrm_bb_seal(signer: String, trap: Int, reg: Int, fmac: Int,
+                  phash: Int) -> OodrmFlight {
+    let kp: List[String] = oodrm_attest_keypair(oodrm_attest_seed(signer + "-bb"));
+    let mut f: OodrmFlight = OodrmFlight { magic: 8365031, trap: trap, reg: reg,
+        fmac: fmac, phash: phash,
+        trace: oodrm_bb_trace(trap, reg, fmac, phash), pk: "", sig: "" };
+    if list_len(kp) == 2 {
+        f.pk = list_get(kp, 0);
+        f.sig = crypto_mldsa65_sign_internal(list_get(kp, 1),
+            oodrm_bb_msg(trap, reg, fmac, phash, f.trace), "");
+    }
+    return f;
+}
+
+pub fn oodrm_bb_next(prev: OodrmFlight, signer: String, trap: Int) -> OodrmFlight {
+    return oodrm_bb_seal(signer, trap, prev.reg, prev.fmac, oodrm_bb_link(prev));
+}
+
+pub fn oodrm_bb_verify(f: OodrmFlight, expect: Int, reg: Int, fmac: Int) -> Int {
+    let mut bits: Int = 0;
+    if f.magic == 8365031 && f.reg == reg && f.fmac == fmac &&
+        f.phash == expect && f.phash != 0 && f.trap != 0 &&
+        f.trace != 0 &&
+        f.trace == oodrm_bb_trace(f.trap, f.reg, f.fmac, f.phash) {
+        bits = bits | 1;
+    }
+    if chars_len(f.pk) == 3904 && chars_len(f.sig) == 6618 {
+        bits = bits | 2;
+    }
+    if crypto_mldsa65_verify_internal(f.pk, oodrm_bb_msg(f.trap, f.reg,
+        f.fmac, f.phash, f.trace), f.sig) == "OK" {
+        bits = bits | 4;
+    }
+    return bits;
+}
+
+pub fn oodrm_bb_ok(f: OodrmFlight, expect: Int, reg: Int, fmac: Int) -> Bool {
+    return oodrm_bb_verify(f, expect, reg, fmac) == 7;
+}

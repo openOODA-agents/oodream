@@ -1,0 +1,58 @@
+// # oodream Canonical 8-Word Inter-Agent Frame
+//
+// Logline: Packs, seals, and verifies the 64-byte single-cache-line IPC envelope.
+//
+// Setup: Declared capability: None. Pure arithmetic; the seal key derives from the fleet badge.
+//
+// Beats:
+//   1. Word 0 packs magic16 | op8 | flags40; word 1 carries the capability register.
+//   2. Words 2-6 carry five arguments; word 7 is the SplitMix64 MAC seal.
+//   3. Check re-derives the seal and rejects tampered or foreign-key frames.
+
+import "oostd/hw/ipc/wire.oo";
+import "oostd/sec/pqc.oo";
+import "oostd/sec/warrant_grp/warrant.oo";
+import "warrant.oo";
+
+type OodrmFrame = struct {
+    w0: Int, reg: Int, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, seal: Int
+};
+
+pub fn oodrm_frame_key(badge: Int) -> Int {
+    return oo_pqc_sha3_round(badge, 1442695040888963407);
+}
+
+pub fn oodrm_frame_op_of(mode: String) -> Int {
+    if mode == "scan" { return 1; }
+    if mode == "synthesize" { return 2; }
+    return 4;
+}
+
+pub fn oodrm_frame_mac(key: Int, w0: Int, reg: Int, a0: Int, a1: Int,
+                    a2: Int, a3: Int, a4: Int) -> Int {
+    return oo_pqc_hmac(oo_wire_mac(list_push(list_push(list_push(
+        list_push(list_push(list_push(list_push(list_new(), w0), reg),
+        a0), a1), a2), a3), a4)), key);
+}
+
+pub fn oodrm_frame_pack(opf: Int, reg: Int, a0: Int, a1: Int,
+                     a2: Int, a3: Int, a4: Int, key: Int) -> OodrmFrame {
+    let w0: Int = (218 << 48) | (opf & 281474976710655);
+    let s: Int = oodrm_frame_mac(key, w0, reg, a0, a1, a2, a3, a4);
+    return OodrmFrame { w0: w0, reg: reg, a0: a0, a1: a1, a2: a2,
+        a3: a3, a4: a4, seal: s };
+}
+
+pub fn oodrm_frame_check(f: OodrmFrame, key: Int) -> Bool {
+    if ((f.w0 >> 48) & 65535) != 218 { return false; }
+    return oodrm_frame_mac(key, f.w0, f.reg, f.a0, f.a1, f.a2, f.a3, f.a4) == f.seal;
+}
+
+pub fn oodrm_frame_op(f: OodrmFrame) -> Int { return (f.w0 >> 40) & 255; }
+pub fn oodrm_frame_flags(f: OodrmFrame) -> Int { return f.w0 & 1099511627775; }
+
+pub fn oodrm_frame_turn(f: OodrmFrame, key: Int) -> OodrmFrame {
+    let nop: Int = oo_ooda_next_phase(oodrm_frame_op(f) - 1) + 1;
+    let nreg: Int = if nop == 1 { oodrm_warrant_wrap(f.reg) } else { f.reg };
+    return oodrm_frame_pack((nop << 40) | ((oodrm_frame_flags(f)) & 1099511627775), nreg, f.a0, f.a1, f.a2, f.a3, f.a4, key);
+}

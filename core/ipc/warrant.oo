@@ -1,0 +1,42 @@
+// # oodream Subagent Warrant Rights & OODA Epoch
+//
+// Logline: Issues capability-attenuated subagent warrants over the 64-bit cycle register and adv.
+//
+// Setup: Declared capability: None. Pure register arithmetic over std rt_caps_reg64 (epoch16 | r.
+//
+// Beats:
+//   1. Map each dispatch mode to its upper-32 warrant rights byte.
+//   2. Issue child warrants: rights ANDed, DELEGATE (0x08) stripped.
+//   3. Wrap the epoch forward when the OODA phase returns to Observe.
+
+import "oostd/sec/capreg.oo";
+import "oostd/sec/warrant_grp/warrant.oo";
+
+pub fn oodrm_warrant_rights(mode: String) -> Int {
+    if mode == "scan" { return 65; }
+    if mode == "synthesize" { return 193; }
+    if mode == "dream" { return 121; }
+    return 65;
+}
+
+pub fn oodrm_warrant_has(reg: Int, flag: Int) -> Bool {
+    return ((reg >> 40) & flag) == flag;
+}
+
+pub fn oodrm_warrant_epoch(reg: Int) -> Int {
+    return (reg >> 48) & 65535;
+}
+
+pub fn oodrm_warrant_wrap(reg: Int) -> Int {
+    return oo_cap_reg64_pack(oo_epoch_advance(oodrm_warrant_epoch(reg), 3),
+        (reg >> 40) & 255, (reg >> 32) & 255, reg & ((1 << 32) - 1));
+}
+
+pub fn oodrm_warrant_issue(reg: Int, badge: Int, caps: Int) -> Int {
+    let crights: Int = ((reg >> 40) & 255) & 247;
+    return oo_cap_reg64_attenuate(reg, crights, badge, caps);
+}
+
+pub fn oodrm_warrant_phase(op: Int) -> Int {
+    return (op - 1) & 3;
+}

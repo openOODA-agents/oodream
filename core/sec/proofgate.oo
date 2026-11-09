@@ -1,0 +1,96 @@
+// # oodream Proof-Carrying Act Transition Gate
+//
+// Logline: Bind every Act transition to a PQC-sealed verification certificate.
+//
+// Setup: Imports delegate, revoke, speculate, attest, quorum, and mix64 pages.
+//
+// Beats:
+//   1. Pack frame MAC, quorum tally, checkpoint root, and clean verdicts.
+//   2. Require a live delegated register under the current parent epoch.
+//   3. Seal the certificate under ML-DSA-65; require mask == 7.
+
+import "core/sec/delegate.oo";
+import "core/sec/revoke.oo";
+import "core/sec/speculate.oo";
+import "core/ipc/attest.oo";
+import "core/ipc/quorum.oo";
+import "oostd/sec/pqc.oo";
+
+type OodrmProof = struct {
+    magic: Int,
+    preg: Int,
+    creg: Int,
+    fmac: Int,
+    tally: Int,
+    sroot: Int,
+    verdicts: Int,
+    pk: String,
+    sig: String,
+    mac: Int
+};
+
+pub fn oodrm_proof_verdicts(red: Int, fals: Int) -> Int {
+    return (red & 65535) | (fals << 16);
+}
+
+pub fn oodrm_proof_tally(votes: Int) -> Int {
+    return oo_pqc_sha3_round(votes, 3);
+}
+
+pub fn oodrm_proof_mac(preg: Int, creg: Int, fmac: Int, tally: Int,
+    sroot: Int, verdicts: Int) -> Int {
+    return oo_pqc_hmac(oo_pqc_sha3_round(preg, fmac) ^
+        oo_pqc_sha3_round(creg, tally), oo_pqc_sha3_round(sroot, verdicts));
+}
+
+pub fn oodrm_proof_msg(p: OodrmProof) -> String {
+    return "proof|" + p.preg.to_string() + "|" + p.creg.to_string() +
+        "|" + p.fmac.to_string() + "|" + p.tally.to_string() +
+        "|" + p.sroot.to_string() + "|" + p.verdicts.to_string() +
+        "|" + p.mac.to_string();
+}
+
+pub fn oodrm_proof_issue(signer: String, preg: Int, creg: Int, fmac: Int,
+    tally: Int, sroot: Int, red: Int, fals: Int) -> OodrmProof {
+    let verdicts: Int = oodrm_proof_verdicts(red, fals);
+    let mac: Int = oodrm_proof_mac(preg, creg, fmac, tally, sroot, verdicts);
+    let kp: List[String] = oodrm_attest_keypair(oodrm_attest_seed(signer + "-pf"));
+    let mut p: OodrmProof = OodrmProof { magic: 9421551, preg: preg, creg: creg, fmac: fmac,
+        tally: tally, sroot: sroot, verdicts: verdicts, pk: "", sig: "",
+        mac: mac };
+    if list_len(kp) == 2 {
+        p.pk = list_get(kp, 0);
+        p.sig = crypto_mldsa65_sign_internal(list_get(kp, 1),
+            oodrm_proof_msg(p), "");
+    }
+    return p;
+}
+
+pub fn oodrm_proof_verify(p: OodrmProof) -> Int {
+    let mut bits: Int = 0;
+    if p.magic == 9421551 && p.verdicts == 0 && p.fmac != 0 &&
+        p.tally != 0 && p.sroot != 0 && oodrm_rev_live(p.preg, p.creg) &&
+        p.mac != 0 && p.mac == oodrm_proof_mac(p.preg, p.creg, p.fmac,
+        p.tally, p.sroot, p.verdicts) {
+        bits = bits | 1;
+    }
+    if chars_len(p.pk) == 3904 && chars_len(p.sig) == 6618 {
+        bits = bits | 2;
+    }
+    if crypto_mldsa65_verify_internal(p.pk, oodrm_proof_msg(p), p.sig) == "OK" {
+        bits = bits | 4;
+    }
+    return bits;
+}
+
+pub fn oodrm_proof_ok(p: OodrmProof) -> Bool {
+    return oodrm_proof_verify(p) == 7;
+}
+
+pub fn oodrm_proof_gate(d: OodrmDeleg, fmac: Int, sck: OodrmSpecCk) -> Bool {
+    let badge: Int = (d.preg >> 32) & 255;
+    let tally: Int = oodrm_proof_tally(list_len(oodrm_quorum_badges(badge)));
+    let p: OodrmProof = oodrm_proof_issue("gate", d.preg, d.creg, fmac, tally,
+        sck.phash, 0, 0);
+    return oodrm_proof_ok(p);
+}

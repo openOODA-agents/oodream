@@ -1,0 +1,92 @@
+// # oodream Bounded Journal Store
+//
+// Logline: Implements a capacity-bounded key/value journal with FIFO eviction and checksum integ.
+//
+// Setup: Declared capability: FsRead via the caller scan. Pure in-memory data structure.
+//
+// Beats:
+//   1. Allocate the store with a clamped capacity.
+//   2. Insert with duplicate detection and FIFO eviction on overflow.
+//   3. Verify structural invariants and checksum state.
+
+import "oostd/sec/pqc.oo";
+
+type DreamStore = struct {
+    keys: List[String],
+    vals: List[Int],
+    cap: Int,
+    checksum: Int
+};
+
+pub fn oodrm_new(cap: Int) -> DreamStore {
+    let c: Int = if cap <= 0 { 8 } else { cap };
+    return DreamStore { keys: list_new(), vals: list_new(), cap: c, checksum: c * 7 + 1 };
+}
+
+pub fn oodrm_find(m: DreamStore, key: String) -> Int {
+    let mut i: Int = 0;
+    while i < list_len(m.keys) {
+        if list_get(m.keys, i) == key { return i; }
+        i = i + 1;
+    }
+    return 0 - 1;
+}
+
+pub fn oodrm_hash(s: String) -> Int {
+    let mut hh: Int = 0;
+    let mut i: Int = 0;
+    while i < bytes_len(s) {
+        hh = oo_pqc_sha3_round(hh, byte_at(s, i));
+        i = i + 1;
+    }
+    return hh;
+}
+
+pub fn oodrm_tail_s(items: List[String]) -> List[String] {
+    let mut out: List[String] = list_new();
+    let mut i: Int = 1;
+    while i < list_len(items) { out = list_push(out, list_get(items, i));
+    i = i + 1;
+    }
+    return out;
+}
+
+pub fn oodrm_tail_i(items: List[Int]) -> List[Int] {
+    let mut out: List[Int] = list_new();
+    let mut i: Int = 1;
+    while i < list_len(items) { out = list_push(out, list_get(items, i));
+    i = i + 1;
+    }
+    return out;
+}
+
+pub fn oodrm_put(m: DreamStore, key: String, val: Int) -> DreamStore {
+    let idx: Int = oodrm_find(m, key);
+    if idx >= 0 {
+        let nv: List[Int] = list_set(m.vals, idx, val);
+        let cs2: Int = oo_pqc_sha3_round(m.checksum, val);
+        return DreamStore { keys: m.keys, vals: nv, cap: m.cap, checksum: cs2 };
+    }
+    let mut ks: List[String] = m.keys;
+    let mut vs: List[Int] = m.vals;
+    if list_len(ks) >= m.cap { ks = oodrm_tail_s(ks);
+    vs = oodrm_tail_i(vs);
+    }
+    ks = list_push(ks, key);
+    vs = list_push(vs, val);
+    let cs: Int = oo_pqc_sha3_round(oo_pqc_sha3_round(m.checksum, oodrm_hash(key)), val);
+    return DreamStore { keys: ks, vals: vs, cap: m.cap, checksum: cs };
+}
+
+pub fn oodrm_get(m: DreamStore, key: String) -> Int {
+    let idx: Int = oodrm_find(m, key);
+    if idx < 0 { return 0 - 1; }
+    return list_get(m.vals, idx);
+}
+
+pub fn oodrm_verify(m: DreamStore) -> Bool {
+    if m.cap <= 0 || list_len(m.keys) != list_len(m.vals) { return false; }
+    if list_len(m.keys) > m.cap { return false; }
+    return m.checksum != 0;
+}
+

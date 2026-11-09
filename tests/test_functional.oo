@@ -1,0 +1,92 @@
+// # oodream Axis 1 Functional Suite
+//
+// Logline: Verifies positive functional I/O, bounded KV store FIFO eviction, capreg/warrant, and episodic persistence.
+//
+// Setup: Explicit FsReadCap and FsWriteCap capabilities for real episodic round-trip and scan verification.
+//
+// Beats:
+//   1. Verify bounded DreamStore put/get, FIFO eviction, SHA3 checksum chain, and hash vectors.
+//   2. Verify capability register packing, warrant chaining, delegation, revocation, and proofgate.
+//   3. Verify real episodic memory .oot persistence and round-trip verification on disk.
+
+import "anchor.oo";
+import "cli/persona/anchor.oo";
+import "core/sec/path_guard.oo";
+
+fn assert_true(cond: Bool, label: String) -> Int {
+    if cond {
+        println("  [PASS] " + label);
+        return 0;
+    }
+    println("  [FAIL] " + label);
+    return 1;
+}
+
+fn test_store_core(fs_r: &FsReadCap) -> Int {
+    let mut f: Int = 0;
+    f = f + assert_true(oodrm_name() == "oodream", "component name is oodream");
+    let mut m: DreamStore = oodrm_new(2);
+    m = oodrm_put(m, "a", 1);
+    m = oodrm_put(m, "b", 2);
+    m = oodrm_put(m, "c", 3);
+    f = f + assert_true(list_len(m.keys) == 2, "bounded store clamps capacity to 2");
+    f = f + assert_true(oodrm_get(m, "a") == 0 - 1, "FIFO evicts oldest key a");
+    f = f + assert_true(oodrm_get(m, "c") == 3, "retained key c returns 3");
+    m = oodrm_put(m, "c", 9);
+    f = f + assert_true(oodrm_get(m, "c") == 9, "in-place update of key c returns 9");
+    f = f + assert_true(oodrm_verify(m), "store checksum invariant holds");
+    f = f + assert_true(oodrm_hash("") == 0 && oodrm_hash("a") == 1854425101799010507, "SHA3 round hash vector holds");
+    f = f + assert_true(oodrm_about_sub_known("synthesize"), "about knows synthesize subcommand");
+    f = f + assert_true(str_contains(oodrm_about_json(), "\"component\":\"oodream\""), "about json valid");
+    f = f + assert_true(list_len(oodrm_scan_files(fs_r, "/Projects/openOODA-agents/oodream/core")) >= 2, "scan_files finds pages");
+    return f;
+}
+
+fn test_sec_and_ipc() -> Int {
+    let mut f: Int = 0;
+    let reg: Int = oodrm_cap_reg64(3, 255);
+    f = f + assert_true(oodrm_cap_check(reg, 3, 255, oodrm_cap_mask()), "capreg check admits live register");
+    let child: Int = oodrm_cap_attenuate(reg, 65, 2, oodrm_cap_mask());
+    f = f + assert_true(oodrm_cap_check(child, 3, 65, oodrm_cap_mask()), "capreg child attenuated check passes");
+    let key: Int = oodrm_frame_key(oodrm_cap_badge());
+    let fr: OodrmFrame = oodrm_frame_pack((1 << 40), reg, 11, 22, 33, 44, 55, key);
+    f = f + assert_true(oodrm_frame_check(fr, key), "sealed IPC frame verifies with key");
+    f = f + assert_true(oodrm_frame_check(oodrm_frame_turn(fr, key), key), "act-to-observe frame turn verifies");
+    let akp: List[String] = oodrm_attest_keypair(oodrm_attest_seed("oodream"));
+    let att: OodrmAttest = oodrm_attest_seal(akp, "oodream", reg, fr.seal);
+    f = f + assert_true(oodrm_attest_ok(att, list_get(akp, 1), reg, fr.seal), "ML-DSA-65 attestation verifies");
+    let dpr: Int = oodrm_cap_reg64(3, 61);
+    let dg: OodrmDeleg = oodrm_deleg_seal("oodream", dpr,
+        oodrm_deleg_issue(dpr, oodrm_cap_mask(), oodrm_cap_badge() + 1), oodrm_sm64(5));
+    f = f + assert_true(oodrm_deleg_ok(dg), "delegation seal verifies");
+    f = f + assert_true(oodrm_rev_gate(dpr, dg, oodrm_sm64(5)), "revocation gate passes");
+    return f;
+}
+
+fn test_episodic_persistence(fs_r: &FsReadCap, fs_w: &FsWriteCap) -> Int {
+    let mut f: Int = 0;
+    let edir: String = "/tmp/oodream_fn_episodic";
+    let mut e_args: List[String] = list_new();
+    e_args = list_push(e_args, "dream");
+    e_args = list_push(e_args, edir);
+    let rc: Int = oodrm_run_dream(fs_r, fs_w, e_args);
+    f = f + assert_true(rc == 0, "episodic persistence round-trip succeeds on /tmp");
+    let items: List[String] = oodrm_art_read(fs_r, edir + "/dream-1701.oot");
+    f = f + assert_true(list_len(items) == 8, "reloaded episodic artifact has 8 checksummed entries");
+    f = f + assert_true(oodrm_path_ok("/tmp/oodream_fn_episodic/foo_bar.oot"), "valid path admitted by path_guard");
+    return f;
+}
+
+fn main(fs_r: &FsReadCap, fs_w: &FsWriteCap) -> Int {
+    println("=== oodream Functional Test Suite (Axis 1) ===");
+    let mut failures: Int = 0;
+    failures = failures + test_store_core(fs_r);
+    failures = failures + test_sec_and_ipc();
+    failures = failures + test_episodic_persistence(fs_r, fs_w);
+    if failures == 0 {
+        println("oodream functional tests: ALL PASSED");
+        return 0;
+    }
+    println("oodream functional tests: FAILED (" + failures.to_string() + ")");
+    return 1;
+}

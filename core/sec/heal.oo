@@ -1,0 +1,93 @@
+// # oodream Counterexample-Guided Self-Healing Synthesis Gate
+//
+// Logline: Synthesize and verify attenuated patch candidates from sealed autopsies.
+//
+// Setup: Imports blackbox, attest, and mix64 pages; ingest requires mask == 7.
+//
+// Beats:
+//   1. Ingest a PQC-sealed blackbox autopsy and derive the counterexample.
+//   2. Synthesize a deterministic patch inside the remaining gas budget.
+//   3. Re-verify under ML-DSA-65; zero findings and counterexamples commit.
+
+import "core/ipc/blackbox.oo";
+import "core/ipc/attest.oo";
+import "oostd/sec/pqc.oo";
+import "oostd/sec/audit.oo";
+
+type OodrmHeal = struct {
+    magic: Int,
+    trace: Int,
+    cex: Int,
+    gas: Int,
+    patch: Int,
+    pk: String,
+    sig: String,
+    mac: Int
+};
+
+pub fn oodrm_heal_cex(fmac: Int, phash: Int) -> Int {
+    return oo_audit_link(fmac, phash) | 1;
+}
+
+pub fn oodrm_heal_patch(trace: Int, cex: Int, gas: Int) -> Int {
+    return (oo_pqc_sha3_round(trace, cex) ^ gas) | 1;
+}
+
+pub fn oodrm_heal_mac(trace: Int, cex: Int, gas: Int, patch: Int) -> Int {
+    return oo_pqc_hmac(oo_pqc_sha3_round(trace, cex),
+        oo_pqc_sha3_round(gas, patch));
+}
+
+pub fn oodrm_heal_msg(h: OodrmHeal) -> String {
+    return "heal|" + h.trace.to_string() + "|" + h.cex.to_string() +
+        "|" + h.gas.to_string() + "|" + h.patch.to_string() +
+        "|" + h.mac.to_string();
+}
+
+pub fn oodrm_heal_synth(signer: String, bb: OodrmFlight, gas: Int) -> OodrmHeal {
+    let mut cex: Int = 0;
+    let mut trace: Int = 0;
+    if oodrm_bb_verify(bb, bb.phash, bb.reg, bb.fmac) == 7 {
+        cex = oodrm_heal_cex(bb.fmac, bb.phash);
+        trace = bb.trace;
+    }
+    let patch: Int = oodrm_heal_patch(trace, cex, gas);
+    let mac: Int = oodrm_heal_mac(trace, cex, gas, patch);
+    let kp: List[String] = oodrm_attest_keypair(oodrm_attest_seed(signer + "-hl"));
+    let mut h: OodrmHeal = OodrmHeal { magic: 9421557, trace: trace, cex: cex, gas: gas,
+        patch: patch, pk: "", sig: "", mac: mac };
+    if list_len(kp) == 2 {
+        h.pk = list_get(kp, 0);
+        h.sig = crypto_mldsa65_sign_internal(list_get(kp, 1),
+            oodrm_heal_msg(h), "");
+    }
+    return h;
+}
+
+pub fn oodrm_heal_verify(h: OodrmHeal, budget: Int, cex_expect: Int) -> Int {
+    let mut bits: Int = 0;
+    if h.magic == 9421557 && h.cex != 0 && h.cex == cex_expect &&
+        h.trace != 0 && h.gas > 0 && h.gas <= budget &&
+        h.patch == oodrm_heal_patch(h.trace, h.cex, h.gas) && h.mac != 0 &&
+        h.mac == oodrm_heal_mac(h.trace, h.cex, h.gas, h.patch) {
+        bits = bits | 1;
+    }
+    if chars_len(h.pk) == 3904 && chars_len(h.sig) == 6618 {
+        bits = bits | 2;
+    }
+    if crypto_mldsa65_verify_internal(h.pk, oodrm_heal_msg(h), h.sig) == "OK" {
+        bits = bits | 4;
+    }
+    return bits;
+}
+
+pub fn oodrm_heal_ok(h: OodrmHeal, budget: Int, cex_expect: Int) -> Bool {
+    return oodrm_heal_verify(h, budget, cex_expect) == 7;
+}
+
+pub fn oodrm_heal_gate(bb: OodrmFlight, budget: Int) -> Bool {
+    let cex: Int = oodrm_heal_cex(bb.fmac, bb.phash);
+    let gas: Int = (oo_pqc_sha3_round(bb.reg, 7) & (budget - 1)) + 1;
+    let h: OodrmHeal = oodrm_heal_synth("heal", bb, gas);
+    return oodrm_heal_ok(h, budget, cex);
+}

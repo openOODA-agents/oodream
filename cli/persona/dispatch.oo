@@ -1,0 +1,29 @@
+// # oodream Clean Subcommand Dispatch
+//
+// Logline: Maps CLI subcommands to canonical oodream execution without --persona flags.
+//
+// Setup: Zero ambient authority string parsing over argument tokens.
+//
+// Beats:
+//   1. Return canonical oodream identity.
+//   2. Pass clean argument tokens directly to mode scanners.
+//   3. Map the canonical identity onto the host mode scanner.
+
+import "meta.oo";
+import "cli/cli.oo";
+
+pub fn oodrm_persona_flag(args: List[String]) -> String {
+    return "";
+}
+
+pub fn oodrm_persona_resolve(args: List[String]) -> String {
+    return oodrm_persona_id(0);
+}
+
+pub fn oodrm_persona_strip(args: List[String]) -> List[String] {
+    return args;
+}
+
+pub fn oodrm_persona_mode(args: List[String], id: String) -> String {
+    return oodrm_mode(args);
+}

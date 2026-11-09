@@ -1,0 +1,91 @@
+// # oodream Axis 2 Negative-Trust Refusal Suite
+//
+// Logline: Verifies fail-closed refusal on path traversal, capability escalation, tampering, and unknown flags.
+//
+// Setup: Zero-trust negative tests validating refusal on malformed CLI inputs and cryptographic/capability tampering.
+//
+// Beats:
+//   1. Refuse CWE-22 path traversal (`..`), empty paths, and control characters in path_guard.
+//   2. Refuse capability escalation, warrant forgery, frame tampering, and delegation widening.
+//   3. Refuse unknown CLI flags, unknown subcommands, and corrupted DreamStore invariants.
+
+import "anchor.oo";
+import "cli/cli.oo";
+import "cli/persona/anchor.oo";
+import "core/sec/path_guard.oo";
+
+fn assert_refuse(cond: Bool, label: String) -> Int {
+    if cond {
+        println("  [PASS] refused: " + label);
+        return 0;
+    }
+    println("  [FAIL] did not refuse: " + label);
+    return 1;
+}
+
+fn test_path_traversal_refusal() -> Int {
+    let mut f: Int = 0;
+    f = f + assert_refuse(!oodrm_path_ok(""), "empty path refused");
+    f = f + assert_refuse(!oodrm_path_ok("../etc/passwd"), "leading .. traversal refused");
+    f = f + assert_refuse(!oodrm_path_ok("/tmp/oodream/../../etc/shadow"), "embedded .. traversal refused");
+    f = f + assert_refuse(!oodrm_arg_ok("--root=../secret"), "CLI arg with .. traversal refused");
+    return f;
+}
+
+fn test_cap_and_ipc_refusal() -> Int {
+    let mut f: Int = 0;
+    let reg: Int = oodrm_cap_reg64(3, 255);
+    f = f + assert_refuse(!oodrm_cap_check(reg, 4, 255, 0), "stale epoch refused");
+    f = f + assert_refuse(oodrm_cap_admit(reg, 0 - 1, 255, 0) == 0 - 22, "negative epoch refused");
+    f = f + assert_refuse(oodrm_cap_admit(reg, 3, 256, 0) == 0 - 22, "rights overflow refused");
+    f = f + assert_refuse(oodrm_cap_admit(reg, 3, 255, 1 << 12) == 0 - 13, "missing capability bit refused");
+    let key: Int = oodrm_frame_key(oodrm_cap_badge());
+    let fr: OodrmFrame = oodrm_frame_pack((1 << 40), reg, 11, 22, 33, 44, 55, key);
+    let mut tam: OodrmFrame = fr;
+    tam.seal = fr.seal ^ 1;
+    f = f + assert_refuse(!oodrm_frame_check(tam, key), "tampered IPC frame seal refused");
+    f = f + assert_refuse(!oodrm_frame_check(fr, key + 7), "foreign key IPC frame refused");
+    let dpr: Int = oodrm_cap_reg64(3, 29);
+    let dc: Int = oodrm_deleg_issue(dpr, oodrm_cap_mask(), oodrm_cap_badge() + 1);
+    let bad_dg: OodrmDeleg = oodrm_deleg_seal("oodream", dpr, dc | (1 << 30), oodrm_sm64(5));
+    f = f + assert_refuse(!oodrm_deleg_ok(bad_dg), "delegation privilege escalation refused");
+    let rk: OodrmRevok = oodrm_rev_seal("oodream", oodrm_cap_reg64(3, 61), oodrm_sm64(5));
+    f = f + assert_refuse(!oodrm_rev_live(rk.preg, dc), "revoked parent epoch kills child subtree");
+    return f;
+}
+
+fn test_cli_and_store_refusal() -> Int {
+    let mut f: Int = 0;
+    let mut bad_about: List[String] = list_new();
+    bad_about = list_push(bad_about, "about");
+    bad_about = list_push(bad_about, "--bogus-flag");
+    f = f + assert_refuse(oodrm_about_run(bad_about).is_err(), "about unknown flag refused");
+    let mut bad_sub: List[String] = list_new();
+    bad_sub = list_push(bad_sub, "about");
+    bad_sub = list_push(bad_sub, "nonexistent-sub");
+    f = f + assert_refuse(oodrm_about_run(bad_sub).is_err(), "about unknown target refused");
+    let bad_arg_list: List[String] = list_push(list_new(), "--zzz-9");
+    f = f + assert_refuse(oodrm_bad_arg(bad_arg_list) == 0, "unknown CLI flag flagged by oodrm_bad_arg");
+    let mut bad_m: DreamStore = oodrm_new(2);
+    bad_m.checksum = 0;
+    f = f + assert_refuse(!oodrm_verify(bad_m), "zeroed DreamStore checksum refused");
+    let mut desync_m: DreamStore = oodrm_new(2);
+    desync_m.keys = list_push(desync_m.keys, "orphan");
+    f = f + assert_refuse(!oodrm_verify(desync_m), "desynchronized keys/vals length refused");
+    return f;
+}
+
+fn main(env: &EnvCap) -> Int {
+    let _ = env_get(env, "OODA_NO_JAIL");
+    println("=== oodream Negative-Trust Refusal Suite (Axis 2) ===");
+    let mut failures: Int = 0;
+    failures = failures + test_path_traversal_refusal();
+    failures = failures + test_cap_and_ipc_refusal();
+    failures = failures + test_cli_and_store_refusal();
+    if failures == 0 {
+        println("oodream refusal tests: ALL PASSED");
+        return 0;
+    }
+    println("oodream refusal tests: FAILED (" + failures.to_string() + ")");
+    return 1;
+}

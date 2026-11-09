@@ -1,0 +1,77 @@
+// # oodream Merkle-DAG Causal Audit Chain & Quota Gate
+//
+// Logline: Chains each dispatch step's parent hash and monotonically deducts gas from a register-bound quota.
+//
+// Setup: Declared capability: None. Pure Int arithmetic over the sealed frame and cycle register.
+//
+// Beats:
+//   1. Mint a genesis link bound to the capability register and frame MAC.
+//   2. Extend the causal chain, deducting OODA gas from the 64-bit quota counter.
+//   3. Verify structure, quota monotonicity, and seal under mask == 7.
+
+import "oostd/sec/audit.oo";
+import "oostd/sec/pqc.oo";
+
+type OodrmAudit = struct {
+    magic: Int, phash: Int, chash: Int, reg: Int,
+    gas: Int, quota: Int, step: Int, mac: Int
+};
+
+pub fn oodrm_audit_budget(reg: Int) -> Int {
+    return oo_gas_new(4294967296 + (reg & 65535));
+}
+
+pub fn oodrm_audit_gas(op: Int) -> Int {
+    return 16 + op * 4;
+}
+
+pub fn oodrm_audit_hash(phash: Int, reg: Int, fmac: Int, step: Int) -> Int {
+    return oo_audit_link(oo_pqc_sha3_round(phash, reg),
+        oo_pqc_sha3_round(fmac, step));
+}
+
+pub fn oodrm_audit_mac(a: OodrmAudit) -> Int {
+    return oo_pqc_hmac(a.phash ^ a.chash ^
+        oo_pqc_sha3_round(a.quota, a.gas ^ a.step), 1609587929392839161);
+}
+
+pub fn oodrm_audit_genesis(reg: Int, fmac: Int) -> OodrmAudit {
+    let mut a: OodrmAudit = OodrmAudit { magic: 560027153, phash: 0,
+        chash: oodrm_audit_hash(0, reg, fmac, 0), reg: reg,
+        gas: 0, quota: oodrm_audit_budget(reg), step: 0, mac: 0 };
+    a.mac = oodrm_audit_mac(a);
+    return a;
+}
+
+pub fn oodrm_audit_step(prev: OodrmAudit, reg: Int, fmac: Int, gas: Int) -> OodrmAudit {
+    let mut a: OodrmAudit = OodrmAudit { magic: 560027153,
+        phash: prev.chash,
+        chash: oodrm_audit_hash(prev.chash, reg, fmac, prev.step + 1),
+        reg: reg, gas: gas, quota: prev.quota - gas,
+        step: prev.step + 1, mac: 0 };
+    a.mac = oodrm_audit_mac(a);
+    return a;
+}
+
+pub fn oodrm_audit_verify(prev: OodrmAudit, next: OodrmAudit, reg: Int, fmac: Int) -> Int {
+    let mut bits: Int = 0;
+    if prev.magic == 560027153 && next.magic == 560027153 &&
+        next.reg == reg && prev.reg == reg &&
+        next.phash == prev.chash && next.step == prev.step + 1 &&
+        next.chash == oodrm_audit_hash(prev.chash, reg, fmac, next.step) {
+        bits = bits | 1;
+    }
+    if next.gas > 0 && next.gas <= prev.quota &&
+        next.quota == prev.quota - next.gas && next.quota >= 0 &&
+        prev.gas >= 0 {
+        bits = bits | 2;
+    }
+    if next.mac == oodrm_audit_mac(next) {
+        bits = bits | 4;
+    }
+    return bits;
+}
+
+pub fn oodrm_audit_ok(prev: OodrmAudit, next: OodrmAudit, reg: Int, fmac: Int) -> Bool {
+    return oodrm_audit_verify(prev, next, reg, fmac) == 7;
+}

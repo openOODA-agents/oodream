@@ -1,0 +1,104 @@
+// # oodream Constant-Time Timing Immunity Gate
+//
+// Logline: Verify branchless seal comparison and single cache-line stride.
+//
+// Setup: Imports capreg, delegate, speculate, attest, and mix64 pages.
+//
+// Beats:
+//   1. Compare seals through a branchless XOR accumulator, no early exit.
+//   2. Bind frame MAC, causal root, stride, and timing drift budget.
+//   3. Seal under ML-DSA-65; mask == 7 or skew fails closed.
+
+import "core/state/capreg.oo";
+import "core/sec/delegate.oo";
+import "core/sec/speculate.oo";
+import "core/ipc/attest.oo";
+import "core/ipc/mix64.oo";
+
+type OodrmCt = struct {
+    magic: Int,
+    reg: Int,
+    fmac: Int,
+    phash: Int,
+    stride: Int,
+    drift: Int,
+    pk: String,
+    sig: String,
+    mac: Int
+};
+
+pub fn oodrm_ct_acc(a: List[Int], b: List[Int]) -> Int {
+    let mut acc: Int = list_len(a) ^ list_len(b);
+    let mut n: Int = list_len(a);
+    if list_len(b) < n { n = list_len(b); }
+    let mut i: Int = 0;
+    while i < n {
+        acc = acc | (list_get(a, i) ^ list_get(b, i));
+        i = i + 1;
+    }
+    return acc;
+}
+
+pub fn oodrm_ct_reg_ok(reg: Int) -> Bool {
+    let caps: Int = reg & ((1 << 32) - 1);
+    let rights: Int = (reg >> 40) & 255;
+    let epoch: Int = (reg >> 48) & 65535;
+    return caps != 0 && (caps & oodrm_cap_mask()) == caps && rights > 0 &&
+        epoch > 0;
+}
+
+pub fn oodrm_ct_mac(reg: Int, fmac: Int, phash: Int, stride: Int,
+    drift: Int) -> Int {
+    return oodrm_sm64(oodrm_sm64(oodrm_sm64(reg ^ fmac) ^ oodrm_sm64(phash ^ stride))
+        ^ drift);
+}
+
+pub fn oodrm_ct_msg(c: OodrmCt) -> String {
+    return "ct|" + c.reg.to_string() + "|" + c.fmac.to_string() +
+        "|" + c.phash.to_string() + "|" + c.stride.to_string() +
+        "|" + c.drift.to_string() + "|" + c.mac.to_string();
+}
+
+pub fn oodrm_ct_issue(signer: String, reg: Int, fmac: Int, phash: Int,
+    stride: Int, drift: Int) -> OodrmCt {
+    let mac: Int = oodrm_ct_mac(reg, fmac, phash, stride, drift);
+    let kp: List[String] = oodrm_attest_keypair(oodrm_attest_seed(signer + "-ct"));
+    let mut c: OodrmCt = OodrmCt { magic: 8112037, reg: reg, fmac: fmac,
+        phash: phash, stride: stride, drift: drift, pk: "", sig: "",
+        mac: mac };
+    if list_len(kp) == 2 {
+        c.pk = list_get(kp, 0);
+        c.sig = crypto_mldsa65_sign_internal(list_get(kp, 1),
+            oodrm_ct_msg(c), "");
+    }
+    return c;
+}
+
+pub fn oodrm_ct_verify(c: OodrmCt, budget: Int) -> Int {
+    let mut bits: Int = 0;
+    let macc: Int = oodrm_ct_acc(list_push(list_new(), c.mac),
+        list_push(list_new(), oodrm_ct_mac(c.reg, c.fmac, c.phash,
+        c.stride, c.drift)));
+    if c.magic == 8112037 && oodrm_ct_reg_ok(c.reg) && c.fmac != 0 &&
+        c.phash != 0 && c.stride > 0 && c.stride <= 64 &&
+        c.drift >= 0 && c.drift <= budget && c.mac != 0 && macc == 0 {
+        bits = bits | 1;
+    }
+    if chars_len(c.pk) == 3904 && chars_len(c.sig) == 6618 {
+        bits = bits | 2;
+    }
+    if crypto_mldsa65_verify_internal(c.pk, oodrm_ct_msg(c), c.sig) == "OK" {
+        bits = bits | 4;
+    }
+    return bits;
+}
+
+pub fn oodrm_ct_ok(c: OodrmCt, budget: Int) -> Bool {
+    return oodrm_ct_verify(c, budget) == 7;
+}
+
+pub fn oodrm_ct_gate(d: OodrmDeleg, fmac: Int, phash: Int, sck: OodrmSpecCk) -> Bool {
+    let drift: Int = oodrm_sm64(d.preg ^ sck.phash) & 63;
+    let c: OodrmCt = oodrm_ct_issue("ct", d.preg, fmac, phash, 64, drift);
+    return oodrm_ct_ok(c, 64);
+}

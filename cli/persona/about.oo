@@ -1,0 +1,88 @@
+// # oodream About Card
+//
+// Logline: Print the canonical five-field about card of the oodream binary.
+//
+// Setup: Pure constants. The card names the binary, the organization, the summary, the subcommands, and the capability grant.
+//
+// Beats:
+//   1. Render the canonical about card of the oodream binary.
+//   2. Name one canonical subcommand of the oodream binary.
+//   3. Render the machine-readable JSON form of the same card.
+
+import "cli/persona/meta.oo";
+
+pub fn oodrm_about_subs() -> String {
+    return "scan,synthesize,dream,theme,about,status,verify,inspect";
+}
+
+pub fn oodrm_about_caps() -> String {
+    return "FsRead,FsWrite,Env,Tcp";
+}
+
+pub fn oodrm_about_summary() -> String {
+    return "Autonomous agent dreaming engine for offline consolidation and self-hosted LLM synthesis";
+}
+
+pub fn oodrm_about_sub_known(s: String) -> Bool {
+    if s == "scan" { return true; }
+    if s == "synthesize" { return true; }
+    if s == "dream" { return true; }
+    if s == "about" { return true; }
+    if s == "status" { return true; }
+    if s == "verify" { return true; }
+    if s == "inspect" { return true; }
+    return false;
+}
+
+pub fn oodrm_about_card(hit: String) -> String {
+    let l1: String = "Binary       : oodream (v" + oodrm_persona_version("oodream") + ")";
+    let l2: String = "Organization : openOODA-agents (https://github.com/openOODA-agents/oodream)";
+    let l3: String = "Summary      : " + oodrm_about_summary();
+    let l4: String = "Subcommands  : " + oodrm_about_subs();
+    let l5: String = "Capabilities : " + oodrm_about_caps();
+    if hit == "" { return l1 + "\n" + l2 + "\n" + l3 + "\n" + l4 + "\n" + l5; }
+    let l0: String = "Subcommand   : " + hit + " -> run `oodream " + hit + " [args...]`";
+    return l1 + "\n" + l2 + "\n" + l0 + "\n" + l3 + "\n" + l4 + "\n" + l5;
+}
+
+pub fn oodrm_about_json() -> String {
+    return "{\"component\":\"oodream\",\"version\":\"" + oodrm_persona_version("oodream") +
+        "\",\"layer\":\"L7-agents\",\"organization\":\"openOODA-agents\"" +
+        ",\"summary\":\"" + oodrm_about_summary() + "\"" +
+        ",\"subcommands\":\"" + oodrm_about_subs() + "\"" +
+        ",\"capabilities\":\"" + oodrm_about_caps() + "\"}";
+}
+
+pub fn oodrm_about_run(args: List[String]) -> Result[Int, String] {
+    let mut hit: String = "";
+    let mut json: Bool = false;
+    let mut i: Int = 0;
+    while i < list_len(args) {
+        let a: String = list_get(args, i);
+        if a == "--json" {
+            json = true;
+            i = i + 1;
+            continue;
+        }
+        if str_starts_with(a, "-") {
+            println("oodream: about: unknown flag: " + a);
+            return Err("unknown flag");
+        }
+        if a == "about" {
+            i = i + 1;
+            continue;
+        }
+        hit = a;
+        i = list_len(args);
+    }
+    if chars_len(hit) > 0 && !oodrm_about_sub_known(hit) {
+        println("oodream: about: unknown target: " + hit);
+        return Err("unknown target");
+    }
+    if json {
+        println(oodrm_about_json());
+        return Ok(0);
+    }
+    println(oodrm_about_card(hit));
+    return Ok(0);
+}

@@ -1,0 +1,109 @@
+// # Episodic Memory Persistence
+//
+// Logline: Persists and reloads deterministic episodic memory episodes as checksummed .oot artifacts under explicit Fs capabilities.
+// Setup: FsReadCap authorizes reads and directory listing; FsWriteCap authorizes artifact writes; zero ambient authority.
+// Beats:
+//   1. Serialize domain records into a <HDR> document with a rolling checksum trailer.
+//   2. Write the artifact plus a manifest record, then read both back from disk.
+//   3. Prove byte-identical round-trip and emit a deterministic PASS/FAIL verdict.
+
+import "oostd/core/primitives/str_extra.oo";
+
+pub fn oodrm_art_header() -> String {
+    return "OODRM-EP1";
+}
+
+fn oodrm_art_sum(lines: List[String]) -> Int {
+    let mut h: Int = 1469598103934665603 % 1000000009;
+    let mut i: Int = 0;
+    while i < list_len(lines) {
+        let s: String = list_get(lines, i);
+        let mut j: Int = 0;
+        while j < bytes_len(s) {
+            h = (h * 131 + byte_at(s, j)) % 1000000009;
+            j = j + 1;
+        }
+        h = (h * 131 + 10) % 1000000009;
+        i = i + 1;
+    }
+    return h;
+}
+
+fn oodrm_art_items(seed: Int) -> List[String] {
+    let mut out: List[String] = list_new();
+    let mut i: Int = 0;
+    while i < 8 {
+        let h: Int = (seed * 2654435761 + i * 40503) % 1000000009;
+        out = list_push(out, "episodic-" + i.to_string() + " seq=" + (seed + i).to_string() +
+            " chk=" + (h % 65536).to_string());
+        i = i + 1;
+    }
+    return out;
+}
+
+pub fn oodrm_art_serialize(items: List[String]) -> String {
+    let mut s: String = oodrm_art_header() + "\n";
+    let mut i: Int = 0;
+    while i < list_len(items) {
+        s = s + list_get(items, i) + "\n";
+        i = i + 1;
+    }
+    s = s + "sum=" + oodrm_art_sum(items).to_string() + "\n";
+    return s;
+}
+
+fn oodrm_art_parse(src: String) -> List[String] {
+    let lines: List[String] = str_split(src, "\n");
+    if list_len(lines) < 3 || str_trim(list_get(lines, 0)) != oodrm_art_header() {
+        return list_new();
+    }
+    let mut out: List[String] = list_new();
+    let mut want: Int = 0 - 1;
+    let mut i: Int = 1;
+    while i < list_len(lines) {
+        let ln: String = str_trim(list_get(lines, i));
+        if ln != "" {
+            if str_starts_with(ln, "sum=") {
+                want = if chars_len(ln) > 22 { 0 - 1 } else { parse_int_digits(str_slice(ln, 4, chars_len(ln))) };
+            } else {
+                out = list_push(out, ln);
+            }
+        }
+        i = i + 1;
+    }
+    if want >= 0 && oodrm_art_sum(out) == want {
+        return out;
+    }
+    return list_new();
+}
+fn oodrm_art_write(fs_w: &FsWriteCap, path: String, body: String) -> Int {
+    let w: Result[Void, String] = oo_write_file(fs_w, path, body);
+    if w.is_err() {
+        println("oomem dream: FAIL cannot write " + path);
+        return 2;
+    }
+    return 0;
+}
+
+pub fn oodrm_art_read(fs_r: &FsReadCap, path: String) -> List[String] {
+    let r: Result[String, String] = oo_read_file(fs_r, path);
+    if r.is_err() {
+        return list_new();
+    }
+    let src: String = match r { Ok(s) => s, Err(_) => "" };
+    return oodrm_art_parse(src);
+}
+
+pub fn oodrm_art_list(fs_r: &FsReadCap, dir: String) -> List[String] {
+    let mut out: List[String] = list_new();
+    let es: List[String] = oo_fs_read_dir(fs_r, dir);
+    let mut i: Int = 0;
+    while i < list_len(es) {
+        let e: String = list_get(es, i);
+        if str_ends_with(e, ".oot") {
+            out = list_push(out, e);
+        }
+        i = i + 1;
+    }
+    return out;
+}

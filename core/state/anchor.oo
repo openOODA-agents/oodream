@@ -1,0 +1,18 @@
+// # oodream Core Subsystem Anchor
+//
+// Logline: Re-exports the metrics, scanner, and domain pages of oodream.
+//
+// Setup: Pure subsystem anchor shim for oodream core pages.
+//
+// Beats:
+//   1. Export the source metrics page.
+//   2. Export the bounded tree scanner.
+//   3. Export the domain capability page.
+
+import "metrics.oo";
+import "scan.oo";
+import "capreg.oo";
+import "store.oo";
+import "journal.oo";
+import "episodic.oo";
+import "episodic_run.oo";

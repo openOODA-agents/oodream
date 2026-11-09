@@ -1,0 +1,13 @@
+// # oodream Persona Anchor
+//
+// Logline: Re-export shim for the multi-call persona pages.
+//
+// Setup: Import-only shim; zero logic.
+//
+// Beats:
+//   1. Re-export the persona metadata registry, dispatch router, and run page.
+
+import "cli/persona/about.oo";
+import "cli/persona/meta.oo";
+import "cli/persona/dispatch.oo";
+import "cli/persona/run.oo";

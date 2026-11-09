@@ -1,0 +1,94 @@
+// # oodream Source Metrics & Page Shape Analysis
+//
+// Logline: Computes line, function, import, and header metrics for .oo source text in oodream.
+//
+// Setup: Declared capability: None. Pure deterministic string analysis.
+//
+// Beats:
+//   1. Split source into lines and classify each line.
+//   2. Count functions, imports, and the longest trailing function span.
+//   3. Verify the four-element Academy header inside the first seven lines.
+
+type PageInfo = struct {
+    nlines: Int,
+    fns: Int,
+    imports: Int,
+    has_header: Bool,
+    max_fn_len: Int
+};
+
+pub fn oodrm_count_lines(src: String) -> Int {
+    if chars_len(src) == 0 { return 0; }
+    let parts: List[String] = str_split(src, "\n");
+    let mut n: Int = list_len(parts);
+    if list_get(parts, n - 1) == "" { n = n - 1; }
+    return n;
+}
+
+pub fn oodrm_is_fn_line(line: String) -> Bool {
+    let t: String = str_trim(line);
+    if str_starts_with(t, "pub fn ") { return true; }
+    return str_starts_with(t, "fn ");
+}
+
+pub fn oodrm_is_import_line(line: String) -> Bool {
+    return str_starts_with(str_trim(line), "import ");
+}
+
+pub fn oodrm_import_path(line: String) -> String {
+    let q1: Int = str_index_of(line, "\"");
+    if q1 < 0 { return ""; }
+    let rest: String = byte_slice(line, q1 + 1, bytes_len(line));
+    let q2: Int = str_index_of(rest, "\"");
+    if q2 < 0 { return ""; }
+    return byte_slice(line, q1 + 1, q1 + 1 + q2);
+}
+
+pub fn oodrm_has_academy(src: String) -> Bool {
+    let lines: List[String] = str_split(src, "\n");
+    let mut head: String = "";
+    let mut i: Int = 0;
+    let lim: Int = if list_len(lines) < 7 { list_len(lines) } else { 7 };
+    while i < lim { head = head + list_get(lines, i) + "\n";
+    i = i + 1;
+    }
+    if !str_contains(head, "// # ") { return false; }
+    if !str_contains(head, "// Logline:") { return false; }
+    if !str_contains(head, "// Setup:") { return false; }
+    return str_contains(head, "// Beats:");
+}
+
+pub fn oodrm_page_info(src: String) -> PageInfo {
+    let lines: List[String] = str_split(src, "\n");
+    let mut fns: Int = 0;
+    let mut imports: Int = 0;
+    let mut cur: Int = 0;
+    let mut maxfn: Int = 0;
+    let mut i: Int = 0;
+    while i < list_len(lines) {
+        let ln: String = list_get(lines, i);
+        if oodrm_is_fn_line(ln) { fns = fns + 1;
+        if cur > maxfn { maxfn = cur;
+        } cur = 1;
+        }
+        else if cur > 0 { cur = cur + 1; }
+        if oodrm_is_import_line(ln) { imports = imports + 1; }
+        i = i + 1;
+    }
+    if cur > maxfn { maxfn = cur; }
+    let n2: Int = oodrm_count_lines(src);
+    let hd2: Bool = oodrm_has_academy(src);
+    return PageInfo { nlines: n2, fns: fns, imports: imports, has_header: hd2, max_fn_len: maxfn };
+}
+
+pub fn oodrm_imports_of(src: String) -> List[String] {
+    let lines: List[String] = str_split(src, "\n");
+    let mut out: List[String] = list_new();
+    let mut i: Int = 0;
+    while i < list_len(lines) {
+        let ln: String = list_get(lines, i);
+        if oodrm_is_import_line(ln) { out = list_push(out, oodrm_import_path(ln)); }
+        i = i + 1;
+    }
+    return out;
+}

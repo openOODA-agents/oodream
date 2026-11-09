@@ -1,0 +1,84 @@
+// # oodream Zero-Trust Speculative Execution & Arena Rollback
+//
+// Logline: Checkpoints the aligned arena mark and causal root, verifies post-conditions, resets.
+//
+// Setup: Declared capability: None. Deterministic model of oo_arena_mark/reset_mark semantics.
+//
+// Beats:
+//   1. Checkpoint the 16-aligned arena mark and Merkle-DAG causal root.
+//   2. Run speculative Decide->Act, recomputing the causal post-root.
+//   3. Verify post-conditions under mask == 7; on failure reset to the mark.
+
+import "oostd/sec/speculate_grp/speculate.oo";
+import "oostd/sec/audit.oo";
+import "oostd/sec/pqc.oo";
+
+type OodrmSpecCk = struct {
+    magic: Int, mark: Int, phash: Int, reg: Int,
+    fmac: Int, mac: Int
+};
+
+pub fn oodrm_spec_mark(root: Int) -> Int {
+    return oo_pqc_sha3_round(root, 2246822519) & 2147483632;
+}
+
+pub fn oodrm_spec_root(phash: Int, mark: Int, fmac: Int) -> Int {
+    return oo_audit_link(oo_pqc_sha3_round(phash, mark),
+        oo_pqc_sha3_round(fmac, 1));
+}
+
+pub fn oodrm_spec_mac(ck: OodrmSpecCk) -> Int {
+    return oo_pqc_hmac(ck.magic ^ ck.mark ^
+        oo_pqc_sha3_round(ck.phash, ck.reg ^ ck.fmac), 3202034522624059733);
+}
+
+pub fn oodrm_spec_ckpt(reg: Int, fmac: Int, phash: Int) -> OodrmSpecCk {
+    let mut ck: OodrmSpecCk = OodrmSpecCk { magic: 8365041,
+        mark: oodrm_spec_mark(phash), phash: phash, reg: reg,
+        fmac: fmac, mac: 0 };
+    ck.mac = oodrm_spec_mac(ck);
+    return ck;
+}
+
+pub fn oodrm_spec_post(ck: OodrmSpecCk) -> OodrmSpecCk {
+    let ph2: Int = oodrm_spec_root(ck.phash, ck.mark, ck.fmac);
+    let mut post: OodrmSpecCk = OodrmSpecCk { magic: 8365041,
+        mark: oodrm_spec_mark(ph2), phash: ph2,
+        reg: ck.reg, fmac: ck.fmac, mac: 0 };
+    post.mac = oodrm_spec_mac(post);
+    return post;
+}
+
+pub fn oodrm_spec_rollback(ck: OodrmSpecCk, _post: OodrmSpecCk) -> OodrmSpecCk {
+    let _r: Int = oo_ckpt_rollback(oo_ckpt_new(ck.mark, ck.phash, ck.reg),
+        ck.phash, false);
+    return ck;
+}
+
+pub fn oodrm_spec_commit(ck: OodrmSpecCk, post: OodrmSpecCk, reg: Int,
+    fmac: Int) -> OodrmSpecCk {
+    if oodrm_spec_verify(ck, post, reg, fmac) == 7 { return post; }
+    return oodrm_spec_rollback(ck, post);
+}
+
+pub fn oodrm_spec_verify(ck: OodrmSpecCk, post: OodrmSpecCk, reg: Int, fmac: Int) -> Int {
+    let mut bits: Int = 0;
+    if ck.magic == 8365041 && post.magic == 8365041 && ck.reg == reg &&
+        post.reg == reg && ck.fmac == fmac && post.fmac == fmac &&
+        ((post.reg >> 48) & 65535) == ((ck.reg >> 48) & 65535) &&
+        (post.reg & ((1 << 32) - 1)) == (ck.reg & ((1 << 32) - 1)) &&
+        ck.phash != 0 && (ck.mark & 15) == 0 && ck.mark >= 0 &&
+        (post.mark & 15) == 0 && post.mark >= 0 &&
+        ck.mark < 2147483648 && post.mark < 2147483648 {
+        bits = bits | 1;
+    }
+    if post.phash != ck.phash &&
+        post.phash == oodrm_spec_root(ck.phash, ck.mark, ck.fmac) &&
+        post.mark == oodrm_spec_mark(post.phash) {
+        bits = bits | 2;
+    }
+    if ck.mac == oodrm_spec_mac(ck) && post.mac == oodrm_spec_mac(post) {
+        bits = bits | 4;
+    }
+    return bits;
+}

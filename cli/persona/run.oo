@@ -1,0 +1,26 @@
+// # oodream Metadata Render Router
+//
+// Logline: Renders the canonical identity and help for the oodream host.
+//
+// Setup: Zero ambient authority; deterministic printing over the metadata registry.
+//
+// Beats:
+//   1. Print the canonical component identifier deterministically.
+//   2. Render the canonical usage line.
+//   3. Print full help over the clean subcommand contract.
+
+pub fn oodrm_persona_list() -> Int {
+    println("oodream");
+    return 0;
+}
+
+pub fn oodrm_persona_usage(id: String) -> String {
+    return "usage: " + id + " [status|verify|inspect|scan [dir]|synthesize]";
+}
+
+pub fn oodrm_persona_print_help(id: String, name: String, ver: String, desc: String) -> Int {
+    println(name + " " + ver + " - " + desc);
+    println(oodrm_persona_usage(id));
+    println("       [--json] [--self-test] [--tui <theme>|theme <name>] [--help] [--version]");
+    return 0;
+}

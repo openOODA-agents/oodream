@@ -1,0 +1,32 @@
+// # oodream Root Project Anchor
+//
+// Logline: oodream root module anchor re-exporting the core subsystem pages.
+//
+// Setup: Root module anchor providing component metadata accessors.
+//
+// Beats:
+//   1. Re-export the core subsystem anchor.
+//   2. Provide component version, name, and layer accessors.
+//   3. Keep the public entry surface minimal and deterministic.
+
+import "core/state/anchor.oo";
+import "core/ipc/anchor.oo";
+import "core/sec/speculate.oo";
+import "core/sec/delegate.oo";
+import "core/sec/revoke.oo";
+import "core/sec/proofgate.oo";
+import "core/sec/heal.oo";
+import "core/conform/conformance.oo";
+import "core/conform/consttime.oo";
+
+pub fn oodrm_version() -> String {
+    return "0.4.1";
+}
+
+pub fn oodrm_name() -> String {
+    return "oodream";
+}
+
+pub fn oodrm_layer() -> String {
+    return "L7-agents";
+}

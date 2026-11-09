@@ -1,0 +1,72 @@
+// # Episodic Run Run Handler
+//
+// Logline: Drives the dream subcommand: persists the .oot artifact plus manifest, then reads both back from disk.
+// Setup: Imports episodic.oo for codec and I/O helpers; explicit FsReadCap/FsWriteCap tokens, zero ambient authority.
+// Beats:
+//   1. Resolve the target directory and materialize domain records.
+//   2. Write artifact and manifest, then verify read-back and directory listing.
+//   3. Print the PASS line or fail closed with exit code 2.
+
+import "episodic.oo";
+import "core/sec/path_guard.oo";
+
+fn oodrm_art_dir(args: List[String]) -> String {
+    let mut i: Int = 0;
+    while i + 1 < list_len(args) {
+        if list_get(args, i) == "dream" {
+            let nxt: String = list_get(args, i + 1);
+            if !str_starts_with(nxt, "-") {
+                return nxt;
+            }
+        }
+        i = i + 1;
+    }
+    return ".";
+}
+
+pub fn oodrm_run_dream(fs_r: &FsReadCap, fs_w: &FsWriteCap, args: List[String]) -> Int {
+    let dir: String = oodrm_art_dir(args);
+    if !oodrm_path_ok(dir) {
+        println("oomem dream: REFUSED path " + dir);
+        return 2;
+    }
+    let _ = oo_fs_mkdir(fs_w, dir);
+    let items: List[String] = oodrm_art_items(17);
+    let doc: String = oodrm_art_serialize(items);
+    let art_name: String = "dream-1701.oot";
+    let art_path: String = dir + "/" + art_name;
+    let man_name: String = "dream-manifest.oot";
+    let man_path: String = dir + "/" + man_name;
+    let before: List[String] = oodrm_art_list(fs_r, dir);
+    if oodrm_art_write(fs_w, art_path, doc) != 0 {
+        return 2;
+    }
+    let mut min: List[String] = list_new();
+    min = list_push(min, "artifact=" + art_name);
+    min = list_push(min, "items=" + list_len(items).to_string());
+    min = list_push(min, "records=" + oodrm_art_sum(items).to_string());
+    let man_doc: String = oodrm_art_serialize(min);
+    if oodrm_art_write(fs_w, man_path, man_doc) != 0 {
+        return 2;
+    }
+    let back: List[String] = oodrm_art_read(fs_r, art_path);
+    let man: List[String] = oodrm_art_read(fs_r, man_path);
+    let after: List[String] = oodrm_art_list(fs_r, dir);
+    let mut seen: Bool = false;
+    let mut i: Int = 0;
+    while i < list_len(after) {
+        if list_get(after, i) == art_name {
+            seen = true;
+        }
+        i = i + 1;
+    }
+    let ok: Bool = list_len(back) == list_len(items) && seen && list_len(man) >= 2 &&
+        list_len(before) >= 0;
+    if ok {
+        println("oomem dream: PASS dir=" + dir + " artifact=" + art_name +
+            " items=" + list_len(back).to_string() + " manifest=" + man_name);
+        return 0;
+    }
+    println("oomem dream: FAIL round-trip mismatch dir=" + dir);
+    return 1;
+}

@@ -1,0 +1,22 @@
+// # oodream IPC Subsystem Anchor
+//
+// Logline: Re-exports the wrap arithmetic, warrant, frame, and attestation pages of oodream.
+//
+// Setup: Pure subsystem anchor shim for oodream ipc pages.
+//
+// Beats:
+//   1. Export the limb arithmetic and SplitMix64 mix page.
+//   2. Export the subagent warrant and OODA epoch page.
+//   3. Export the canonical 8-word frame pack/seal/check page.
+//   4. Export the ML-DSA-65 + SHA3-256 attestation record page.
+//   5. Export the Merkle-DAG audit chain and quota gate page.
+//   6. Export the Byzantine quorum verification page.
+//   7. Export the blackbox flight-recorder seal and replay page.
+
+import "mix64.oo";
+import "warrant.oo";
+import "frame.oo";
+import "attest.oo";
+import "audit.oo";
+import "quorum.oo";
+import "blackbox.oo";

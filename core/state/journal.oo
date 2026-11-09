@@ -1,0 +1,72 @@
+// # oodream Journal Scan Driver
+//
+// Logline: Drives the bounded journal over scanned .oo pages and emits verification verdicts.
+//
+// Setup: Declared capability: FsRead. Reads each page and folds its metrics into the store.
+//
+// Beats:
+//   1. Fold page line counts into the bounded journal with eviction.
+//   2. Recall entries and verify checksum integrity.
+//   3. Emit the final verdict.
+
+import "metrics.oo";
+import "scan.oo";
+import "oostd/core/ooda.oo";
+import "oostd/core/app/agent/pair_programmer.oo";
+import "core/ipc/mix64.oo";
+import "core/ipc/frame.oo";
+import "core/ipc/warrant.oo";
+import "core/state/capreg.oo";
+import "store.oo";
+
+pub fn oodrm_run_scan(fs: &FsReadCap, root: String) -> Int {
+    let files: List[String] = oodrm_scan_files(fs, root);
+    let mut m: DreamStore = oodrm_new(4);
+    let t_key: Int = oodrm_frame_key(oodrm_cap_badge());
+    let t_sk: Int = oodrm_frame_key(oodrm_cap_badge() + 1);
+    let mut tf: Int = 0;
+    let mut i: Int = 0;
+    while i < list_len(files) {
+        let p: String = list_get(files, i);
+        let src: String = oodrm_read_page(fs, p);
+        let mut t: OodaTurn = oo_ooda_init(oodrm_cap_reg64(1 + i,
+            oodrm_warrant_rights("scan")), 1 + i,
+            oodrm_warrant_rights("scan"), oodrm_cap_need("scan"), 8,
+            oodrm_sm64(i * 31 + 7));
+        t = oo_ooda_observe(t, oodrm_sm64(chars_len(src) + i), 1, t_sk, t_key);
+        let info: PageInfo = oodrm_page_info(src);
+        m = oodrm_put(m, p, info.nlines);
+        t = oo_ooda_orient(t, oodrm_sm64(m.checksum + i), 1, t_sk, t_key);
+        t = oo_ooda_decide(t, info.nlines, 1, t_sk, t_key);
+        t = oo_ooda_act(t, oodrm_sm64(m.checksum * 17 + i), true, t_sk, t_key);
+        if !t.ok || !t.committed { tf = tf + 1; }
+        i = i + 1;
+    }
+    let sz: Int = list_len(m.keys);
+    let sm: String = "store size=" + sz.to_string() + " cap=" + m.cap.to_string();
+    println(sm + " checksum=" + m.checksum.to_string());
+    println("files=" + list_len(files).to_string());
+    let mut _v: String = "verdict=fail";
+    if oodrm_verify(m) && tf == 0 { _v = "verdict=pass"; }
+    println(_v);
+    return 0;
+}
+
+pub fn oodrm_run_domain(fs: &FsReadCap, env: &EnvCap, tcp: &TcpCap, root: String) -> Int {
+    let mut m: DreamStore = oodrm_new(3);
+    m = oodrm_put(m, "a", 1);
+    m = oodrm_put(m, "b", 2);
+    m = oodrm_put(m, "c", 3);
+    m = oodrm_put(m, "d", 4);
+    let ga: Int = oodrm_get(m, "a");
+    let gd: Int = oodrm_get(m, "d");
+    let sz: Int = list_len(m.keys);
+    let cfg: AgentLlmConfig = agent_llm_config_resolve(env);
+    let resp: String = agent_llm_infer(tcp, env, "oodream counterfactual synthesis root=" + root);
+    println("synthesize a=" + ga.to_string() + " d=" + gd.to_string() + " size=" + sz.to_string() +
+        " llm_port=" + cfg.port.to_string());
+    let mut _v: String = "verdict=fail";
+    if oodrm_verify(m) && chars_len(resp) > 0 { _v = "verdict=pass"; }
+    println(_v);
+    return 0;
+}

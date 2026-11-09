@@ -1,0 +1,12 @@
+name=oodream
+version=0.4.1
+layer=L7-agents
+category=AI
+tags=dream,consolidation,counterfactual,discovery,llm
+upstream=dream
+status=shipped
+description=Autonomous agent dreaming engine: offline memory consolidation, counterfactual scenario synthesis, cross-domain connection discovery, and self-hosted LLM (:11435) synthesis
+caps=FsRead,FsWrite,Env,Tcp
+deps=
+entry=cli/main.oo
+payload=cli/main.oo

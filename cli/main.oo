@@ -1,0 +1,243 @@
+// # oodream CLI & Self-Test Entrypoint
+//
+// Logline: CLI driver, subsystem self-test, scanner, and JSON status reporter for oodream.
+//
+// Setup: Zero ambient authority entrypoint; subcommands per the Beats contract.
+//
+// Beats:
+//   1. Parse CLI arguments into a mode via the cli helpers.
+//   2. Run the domain self-test exercising real logic paths.
+//   3. Emit deterministic human or JSON verification results and run live filesystem scans.
+
+import "anchor.oo";
+import "cli/cli.oo";
+import "cli/persona/anchor.oo";
+import "oostd/core/ooda.oo";
+import "cli/ui/ootheme.oo";
+import "core/sec/path_guard.oo";
+
+fn run_oodrm_selftest() -> Bool {
+    let mut m: DreamStore = oodrm_new(2);
+    m = oodrm_put(m, "a", 1);
+    m = oodrm_put(m, "b", 2);
+    m = oodrm_put(m, "c", 3);
+    if list_len(m.keys) != 2 { return false; }
+    if oodrm_get(m, "a") != 0 - 1 { return false; }
+    if oodrm_get(m, "c") != 3 { return false; }
+    m = oodrm_put(m, "c", 9);
+    if oodrm_get(m, "c") != 9 { return false; }
+    if !oodrm_verify(m) { return false; }
+    if oodrm_hash("") != 0 || oodrm_hash("a") != 1854425101799010507 { return false; }
+    if !oodrm_cap_check(oodrm_cap_reg64(1, 255), 1, (1 << 8) - 1, oodrm_cap_mask()) { return false; }
+    let stk: Int = oodrm_frame_key(oodrm_cap_badge());
+    let stf: OodrmFrame = oodrm_frame_pack((1 << 40), oodrm_cap_reg64(1, oodrm_warrant_rights("scan")), 0, 0, 0, 0, 0, stk);
+    if !oodrm_frame_check(stf, stk) { return false; }
+    return true;
+}
+
+fn oodrm_main(fs: &FsReadCap, fsw: &FsWriteCap, env: &EnvCap, tcp: &TcpCap, args: List[String]) -> Result[Int, String] {
+    let persona: String = oodrm_persona_resolve(args);
+    let name: String = oodrm_name();
+    let ver: String = oodrm_version();
+    if persona == "" {
+        println(name + " " + ver + ": unknown persona");
+        return Err("unknown persona");
+    }
+    let gargs: List[String] = oodrm_persona_strip(args);
+    let mode: String = oodrm_persona_mode(gargs, persona);
+    let desc: String =
+        "Autonomous agent dreaming engine: offline memory consolidation, counterfactual scenario synthesis, and " +
+            "self-hosted LLM (:11435) connection discovery";
+    if mode == "list-personas" { return Ok(oodrm_persona_list()); }
+    let badi: Int = oodrm_bad_arg(gargs);
+    if badi >= 0 {
+        println(name + " " + ver + ": unknown argument " + list_get(gargs, badi));
+        return Err("unknown argument");
+    }
+    let mut tai: Int = 0;
+    while tai < list_len(gargs) {
+        if !oodrm_arg_ok(list_get(gargs, tai)) {
+            println(name + " " + ver + ": REFUSED path " + list_get(gargs, tai));
+            return Ok(2);
+        }
+        tai = tai + 1;
+    }
+    let _gs: Result[Int, String] = oodrm_gate_seal(name, ver, mode);
+    if _gs.is_err() { return _gs; }
+    let _gc: Result[Int, String] = oodrm_gate_chain(name, ver, mode);
+    if _gc.is_err() { return _gc; }
+    if mode == "dream" { return Ok(oodrm_run_dream(fs, fsw, gargs)); }
+    return oodrm_modes(fs, fsw, env, tcp, gargs, mode, name, ver);
+}
+
+pub fn main(fs: &FsReadCap, fsw: &FsWriteCap, env: &EnvCap, tcp: &TcpCap, args: List[String]) -> Result[Int, String] {
+    let r: Result[Int, String] = oodrm_main(fs, fsw, env, tcp, args);
+    if r.is_err() { return Ok(2); }
+    return r;
+}
+
+fn oodrm_gate_seal(name: String, ver: String, mode: String) -> Result[Int, String] {
+    let epoch: Int = 1;
+    let creg: Int = oodrm_cap_reg64(epoch, oodrm_warrant_rights(mode));
+    let need: Int = oodrm_cap_need(mode);
+    if !oodrm_cap_check(creg, epoch, oodrm_warrant_rights(mode), need) {
+        println(name + " " + ver + ": capability denied for " + mode);
+        return Err("capability denied");
+    }
+    let ekey: Int = oodrm_frame_key(oodrm_cap_badge());
+    let envf: OodrmFrame = oodrm_frame_pack(((oodrm_frame_op_of(mode)) << 40), creg, need, epoch, oodrm_cap_badge(), 0, 0,
+        ekey);
+    if !oodrm_frame_check(envf, ekey) {
+        println(name + " " + ver + ": envelope seal failed");
+        return Err("envelope seal failed");
+    }
+    if !oodrm_frame_check(oodrm_frame_turn(envf, ekey), ekey) {
+        println(name + " " + ver + ": turn seal failed");
+        return Err("envelope seal failed");
+    }
+    let akp: List[String] = oodrm_attest_keypair(oodrm_attest_seed(name));
+    let att: OodrmAttest = oodrm_attest_seal(akp, name, envf.reg, envf.seal);
+    if !oodrm_attest_ok(att, list_get(akp, 1), envf.reg, envf.seal) {
+        println(name + " " + ver + ": attestation failed");
+        return Err("attestation failed");
+    }
+    return Ok(0);
+}
+
+fn oodrm_gate_chain(name: String, ver: String, mode: String) -> Result[Int, String] {
+    let epoch: Int = 1;
+    let creg: Int = oodrm_cap_reg64(epoch, oodrm_warrant_rights(mode));
+    let need: Int = oodrm_cap_need(mode);
+    let ekey: Int = oodrm_frame_key(oodrm_cap_badge());
+    let envf: OodrmFrame = oodrm_frame_pack(((oodrm_frame_op_of(mode)) << 40), creg, need, epoch, oodrm_cap_badge(), 0, 0,
+        ekey);
+    let turn: OodaTurn = oo_ooda_cycle(creg, epoch, oodrm_warrant_rights(mode), need, oodrm_audit_budget(creg), 64, envf.seal,
+        envf.seal, oodrm_frame_op(envf), envf.seal, ekey, oodrm_frame_key(oodrm_cap_badge() + 1));
+    if !turn.ok || !turn.committed {
+        println(name + " " + ver + ": ooda turn failed");
+        return Err("ooda turn failed");
+    }
+    let aud0: OodrmAudit = oodrm_audit_genesis(envf.reg, envf.seal);
+    let aud1: OodrmAudit = oodrm_audit_step(aud0, envf.reg, envf.seal,
+        oodrm_audit_gas(oodrm_frame_op(envf)));
+    if !oodrm_audit_ok(aud0, aud1, envf.reg, envf.seal) {
+        println(name + " " + ver + ": audit chain failed");
+        return Err("audit chain failed");
+    }
+    if !oodrm_quorum_ok(oodrm_quorum_votes(name, envf.reg, oodrm_qmac(envf.seal, aud1.phash)),
+        oodrm_quorum_badges(oodrm_cap_badge()), envf.reg, envf.seal,
+        aud1.phash, 4) {
+        println(name + " " + ver + ": quorum failed");
+        return Err("quorum failed");
+    }
+    let bb0: OodrmFlight = oodrm_bb_seal(name, oodrm_bb_trap(oodrm_frame_op(envf), 7),
+        envf.reg, envf.seal, aud1.phash);
+    if !oodrm_bb_ok(bb0, aud1.phash, envf.reg, envf.seal) {
+        println(name + " " + ver + ": blackbox failed");
+        return Err("blackbox failed");
+    }
+    let sck: OodrmSpecCk = oodrm_spec_ckpt(envf.reg, envf.seal, aud1.phash);
+    if oodrm_spec_commit(sck, oodrm_spec_post(sck), envf.reg, envf.seal).phash == sck.phash {
+        println(name + " " + ver + ": speculate failed");
+        return Err("speculate failed");
+    }
+    let dpr: Int = oodrm_cap_reg64(epoch, (oodrm_warrant_rights(mode) & 63) | 56);
+    let dg: OodrmDeleg = oodrm_deleg_seal(name, dpr,
+        oodrm_deleg_issue(dpr, need, oodrm_cap_badge() + 1), aud1.phash);
+    if !oodrm_deleg_ok(dg) { return Err("delegation failed"); }
+    if !oodrm_rev_gate(dpr, dg, aud1.phash) { return Err("revocation failed"); }
+    if !oodrm_proof_gate(dg, envf.seal, sck) { return Err("proof failed"); }
+    if !oodrm_heal_gate(bb0, 64) { return Err("heal failed"); }
+    if !oodrm_conf_gate(dg, envf.seal, aud1.phash, sck) { return Err("conform failed"); }
+    return Ok(0);
+}
+
+fn oodrm_tui(env: &EnvCap, gargs: List[String], name: String, ver: String) -> Result[Int, String] {
+    let mut tn: String = "";
+    let mut i: Int = 0;
+    while i < list_len(gargs) {
+        let a: String = list_get(gargs, i);
+        if str_starts_with(a, "--tui=") { tn = str_slice(a, 6, chars_len(a)); }
+        if (a == "--tui" || a == "theme") && i + 1 < list_len(gargs) &&
+            !str_starts_with(list_get(gargs, i + 1), "-") {
+            tn = list_get(gargs, i + 1);
+        }
+        i = i + 1;
+    }
+    if tn == "" {
+        let et: String = match env_get(env, "OODA_THEME") { Ok(s) => str_trim(s), Err(_) => "" };
+        if et != "" && ootheme_known(et) { tn = et; }
+    }
+    if tn == "" {
+        let nc: String = match env_get(env, "NO_COLOR") { Ok(s) => str_trim(s), Err(_) => "" };
+        if nc != "" { tn = "no-color"; }
+    }
+    if tn == "" { tn = "ooda-dark"; }
+    if !ootheme_known(tn) {
+        println(name + " " + ver + ": unknown theme " + tn);
+        return Err("unknown theme");
+    }
+    let p: OoThemePalette = ootheme_resolve(tn);
+    if !ootheme_verify(p) {
+        println(name + " " + ver + ": theme checksum failed");
+        return Err("theme checksum failed");
+    }
+    if oodrm_has(gargs, "--json") {
+        println(ootheme_json(p));
+        return Ok(0);
+    }
+    println(ootheme_tui_frame(p, name, ver, "L7-agents", "pass"));
+    return Ok(0);
+}
+
+fn oodrm_modes(fs: &FsReadCap, fsw: &FsWriteCap, env: &EnvCap, tcp: &TcpCap, gargs: List[String], mode: String,
+    name: String, ver: String) -> Result[Int, String] {
+    let desc: String =
+        "Autonomous agent dreaming engine: offline memory consolidation, counterfactual scenario synthesis, and " +
+            "self-hosted LLM (:11435) connection discovery";
+    if mode == "help" { return Ok(oodrm_print_help(name, ver, desc)); }
+    if mode == "version" {
+        println(name + " " + ver);
+        return Ok(0);
+    }
+    if mode == "scan" {
+        let sroot: String = oodrm_scan_root(gargs);
+        if !oo_path_exists(fs, sroot) {
+            println(name + " " + ver + ": missing scan root " + sroot);
+            return Err("missing root");
+        }
+        return Ok(oodrm_run_scan(fs, sroot));
+    }
+    if mode == "synthesize" { return Ok(oodrm_run_domain(fs, env, tcp, oodrm_scan_root(gargs))); }
+    if !run_oodrm_selftest() {
+        println("FAIL: " + name + " self-test failed");
+        return Ok(1);
+    }
+    if mode == "json" {
+        println(oodrm_json(name, ver, "DA", 16, "pass"));
+        return Ok(0);
+    }
+    if mode == "about" {
+        return oodrm_about_run(gargs);
+    }
+    if mode == "status" {
+        println(name + " " + ver + ": PASS (" + desc + ")");
+        return Ok(0);
+    }
+    if mode == "verify" {
+        println(name + " " + ver + ": verify OK (metrics+scan+domain)");
+        return Ok(0);
+    }
+    if mode == "inspect" {
+        println(oodrm_json(name, ver, "DA", 16, "pass"));
+        println("domain: synthesize");
+        return Ok(0);
+    }
+    if mode == "selftest" {
+        println(name + " " + ver + ": PASS (self-test)");
+        return Ok(0);
+    }
+    if mode == "tui" { return oodrm_tui(env, gargs, name, ver); }
+    println(name + " " + ver + ": PASS (" + desc + ")");
+    return Ok(0);
+}

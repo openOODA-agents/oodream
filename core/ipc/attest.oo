@@ -1,0 +1,73 @@
+// # oodream Hardware-Backed PQC Attestation Record
+//
+// Logline: Binds the 64-bit capability cycle register and IPC frame MAC into an ML-DSA-65 + SHA3.
+//
+// Setup: crypto_mldsa65_* / crypto_sha3_256_internal builtins; deterministic seed; no ambient ca.
+//
+// Beats:
+//   1. Derive a deterministic ML-DSA-65 keypair from the repo seed.
+//   2. Seal register and frame seal under signature, digest, and keyed MAC.
+//   3. Verify cap-register, HMAC, and PQC bits; mask == 7 is required.
+
+type OodrmAttest = struct {
+    magic: Int, reg: Int, fmac: Int, signer: String,
+    pk: String, digest: String, sig: String, mac: String
+};
+
+pub fn oodrm_attest_seed(signer: String) -> String {
+    return crypto_sha3_256_internal("attest-seed|" + signer);
+}
+
+pub fn oodrm_attest_keypair(seed: String) -> List[String] {
+    let kp: String = crypto_mldsa65_keygen_internal(seed);
+    if chars_len(kp) != 11968 { return list_new(); }
+    return list_push(list_push(list_new(), str_slice(kp, 0, 3904)),
+        str_slice(kp, 3904, 11968));
+}
+
+pub fn oodrm_attest_msg(reg: Int, fmac: Int) -> String {
+    return reg.to_string() + "|" + fmac.to_string();
+}
+
+pub fn oodrm_attest_digest(signer: String, reg: Int, fmac: Int) -> String {
+    return crypto_sha3_256_internal(signer + "|" + oodrm_attest_msg(reg, fmac));
+}
+
+pub fn oodrm_attest_mac(sk: String, signer: String,
+                     digest: String, sig: String) -> String {
+    return crypto_sha3_256_internal("mac|" + sk + "|" + signer + "|" +
+        digest + "|" + sig);
+}
+
+pub fn oodrm_attest_seal(kp: List[String], signer: String,
+                      reg: Int, fmac: Int) -> OodrmAttest {
+    let bad: OodrmAttest = OodrmAttest { magic: 0, reg: 0, fmac: 0, signer: signer,
+        pk: "", digest: "", sig: "", mac: "" };
+    if list_len(kp) != 2 { return bad; }
+    let pk: String = list_get(kp, 0);
+    let sk: String = list_get(kp, 1);
+    let msg: String = oodrm_attest_msg(reg, fmac);
+    let sig: String = crypto_mldsa65_sign_internal(sk, msg, "");
+    if chars_len(sig) != 6618 { return bad; }
+    let dig: String = oodrm_attest_digest(signer, reg, fmac);
+    let mac: String = oodrm_attest_mac(sk, signer, dig, sig);
+    return OodrmAttest { magic: 8365001, reg: reg, fmac: fmac, signer: signer,
+        pk: pk, digest: dig, sig: sig, mac: mac };
+}
+
+pub fn oodrm_attest_verify(a: OodrmAttest, sk: String, reg: Int, fmac: Int) -> Int {
+    let mut bits: Int = 0;
+    if a.magic == 8365001 && a.reg == reg && a.fmac == fmac
+        && chars_len(a.pk) == 3904 && chars_len(a.sig) == 6618
+        && chars_len(a.digest) == 64 && chars_len(a.mac) == 64 { bits = bits + 1; }
+    if a.digest == oodrm_attest_digest(a.signer, reg, fmac)
+        && a.mac == oodrm_attest_mac(sk, a.signer, a.digest, a.sig) { bits = bits + 2; }
+    if crypto_mldsa65_verify_internal(a.pk, oodrm_attest_msg(reg, fmac), a.sig) == "OK" {
+        bits = bits + 4;
+    }
+    return bits;
+}
+
+pub fn oodrm_attest_ok(a: OodrmAttest, sk: String, reg: Int, fmac: Int) -> Bool {
+    return oodrm_attest_verify(a, sk, reg, fmac) == 7;
+}

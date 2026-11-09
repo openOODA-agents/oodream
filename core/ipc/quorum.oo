@@ -1,0 +1,89 @@
+// # oodream Byzantine Quorum Verifier
+//
+// Logline: Requires a 2f+1 quorum of independent scope badges and PQC seals before Act commits.
+//
+// Setup: Declared capability: None. Pure verification over attestation votes and badges.
+//
+// Beats:
+//   1. Derive the 2f+1 quorum size from the declared member count.
+//   2. Reject duplicate badges, split-brain epochs, and reused seals.
+//   3. Verify every ML-DSA-65 vote signature under mask == 7.
+
+import "attest.oo";
+import "oostd/sec/quorum_grp/quorum.oo";
+import "oostd/sec/pqc.oo";
+
+pub fn oodrm_qmac(fmac: Int, phash: Int) -> Int {
+    return oo_quorum_seal(fmac, 193, phash,
+        oo_pqc_sha3_round(fmac, 1609587929392839161),
+        oo_pqc_sha3_round(phash, 4132994306676758123));
+}
+
+pub fn oodrm_quorum_need(m: Int) -> Int {
+    return oo_quorum_threshold((m - 1) / 3);
+}
+
+pub fn oodrm_quorum_votes(signer: String, reg: Int, qm: Int) -> List[OodrmAttest] {
+    let mut v: List[OodrmAttest] = list_new();
+    let mut i: Int = 0;
+    while i < 3 {
+        v = list_push(v, oodrm_attest_seal(oodrm_attest_keypair(
+            oodrm_attest_seed(signer + "-q" + i.to_string())), signer, reg, qm));
+        i = i + 1;
+    }
+    return v;
+}
+
+pub fn oodrm_quorum_badges(base: Int) -> List[Int] {
+    return list_push(list_push(list_push(list_new(), base), base + 1),
+        base + 2);
+}
+
+pub fn oodrm_badges_distinct(badges: List[Int]) -> Bool {
+    return !oo_quorum_has_dup(badges);
+}
+
+pub fn oodrm_sigs_distinct(votes: List[OodrmAttest]) -> Bool {
+    let n: Int = list_len(votes);
+    let mut i: Int = 0;
+    while i < n {
+        let vi: OodrmAttest = list_get(votes, i);
+        let mut j: Int = i + 1;
+        while j < n {
+            let vj: OodrmAttest = list_get(votes, j);
+            if vi.sig == vj.sig { return false; }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+pub fn oodrm_quorum_verify(votes: List[OodrmAttest], badges: List[Int], reg: Int,
+                    fmac: Int, phash: Int, members: Int) -> Int {
+    let mut bits: Int = 0;
+    let qm: Int = oodrm_qmac(fmac, phash);
+    let cnt: Int = list_len(votes);
+    let mut struct_ok: Bool = cnt == list_len(badges) && cnt >= 3 &&
+        oodrm_badges_distinct(badges) && oodrm_sigs_distinct(votes);
+    let mut seals_ok: Bool = true;
+    let mut i: Int = 0;
+    while i < cnt {
+        let v: OodrmAttest = list_get(votes, i);
+        if v.magic != 8365001 || v.reg != reg || v.fmac != qm ||
+            ((v.reg >> 48) & 65535) != ((reg >> 48) & 65535) ||
+            chars_len(v.sig) != 6618 { struct_ok = false; }
+        if crypto_mldsa65_verify_internal(v.pk, oodrm_attest_msg(reg, qm),
+            v.sig) != "OK" { seals_ok = false; }
+        i = i + 1;
+    }
+    if struct_ok { bits = bits | 1; }
+    if cnt >= oodrm_quorum_need(members) && cnt <= members { bits = bits | 2; }
+    if seals_ok { bits = bits | 4; }
+    return bits;
+}
+
+pub fn oodrm_quorum_ok(votes: List[OodrmAttest], badges: List[Int], reg: Int,
+                fmac: Int, phash: Int, members: Int) -> Bool {
+    return oodrm_quorum_verify(votes, badges, reg, fmac, phash, members) == 7;
+}

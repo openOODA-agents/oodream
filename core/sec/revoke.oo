@@ -1,0 +1,88 @@
+// # oodream Cascading Epoch Revocation & Rights Lock Gate
+//
+// Logline: Verify O(1) subtree revocation plus SEAL/IMMUTABLE rights locks.
+//
+// Setup: Imports delegate, warrant, attest, and capreg64 helpers.
+//
+// Beats:
+//   1. Bump the parent epoch under REVOKE (0x20) to kill delegated subtrees.
+//   2. Lock delegation under SEAL (0x40); block mutation under IMMUTABLE (0x80).
+//   3. Seal the revocation record under ML-DSA-65; require mask == 7.
+
+import "core/sec/delegate.oo";
+import "core/ipc/warrant.oo";
+import "core/ipc/attest.oo";
+import "oostd/sec/capreg.oo";
+import "oostd/sec/revoke_grp/revoke.oo";
+import "oostd/sec/pqc.oo";
+
+type OodrmRevok = struct {
+    magic: Int,
+    oreg: Int,
+    preg: Int,
+    phash: Int,
+    pk: String,
+    sig: String,
+    mac: Int
+};
+
+pub fn oodrm_rev_bump(reg: Int) -> Int {
+    return oo_cap_reg64_pack(oo_revoke_epoch(oodrm_warrant_epoch(reg)),
+        oodrm_deleg_rights(reg), (reg >> 32) & 255, oodrm_deleg_caps(reg));
+}
+
+pub fn oodrm_rev_live(reg: Int, wreg: Int) -> Bool {
+    return wreg != 0 &&
+        oodrm_warrant_epoch(wreg) == oo_revoke_epoch(oodrm_warrant_epoch(reg));
+}
+
+pub fn oodrm_rev_mac(oreg: Int, preg: Int, phash: Int) -> Int {
+    return oo_pqc_hmac(oo_pqc_sha3_round(oreg, phash),
+        oo_pqc_sha3_round(preg, 2));
+}
+
+pub fn oodrm_rev_msg(oreg: Int, preg: Int, phash: Int, mac: Int) -> String {
+    return "revoke|" + oreg.to_string() + "|" + preg.to_string() +
+        "|" + phash.to_string() + "|" + mac.to_string();
+}
+
+pub fn oodrm_rev_seal(signer: String, oreg: Int, phash: Int) -> OodrmRevok {
+    let preg: Int = oodrm_rev_bump(oreg);
+    let mac: Int = oodrm_rev_mac(oreg, preg, phash);
+    let kp: List[String] = oodrm_attest_keypair(oodrm_attest_seed(signer + "-rev"));
+    let mut r: OodrmRevok = OodrmRevok { magic: 9421541, oreg: oreg, preg: preg,
+        phash: phash, pk: "", sig: "", mac: mac };
+    if list_len(kp) == 2 {
+        r.pk = list_get(kp, 0);
+        r.sig = crypto_mldsa65_sign_internal(list_get(kp, 1),
+            oodrm_rev_msg(oreg, preg, phash, mac), "");
+    }
+    return r;
+}
+
+pub fn oodrm_rev_verify(r: OodrmRevok) -> Int {
+    let mut bits: Int = 0;
+    if r.magic == 9421541 && oo_revoke_rights_ok(r.oreg) &&
+        !oo_immutable_locked(r.oreg) &&
+        r.preg == oodrm_rev_bump(r.oreg) && r.phash != 0 && r.mac != 0 &&
+        r.mac == oodrm_rev_mac(r.oreg, r.preg, r.phash) {
+        bits = bits | 1;
+    }
+    if chars_len(r.pk) == 3904 && chars_len(r.sig) == 6618 {
+        bits = bits | 2;
+    }
+    if crypto_mldsa65_verify_internal(r.pk, oodrm_rev_msg(r.oreg, r.preg,
+        r.phash, r.mac), r.sig) == "OK" {
+        bits = bits | 4;
+    }
+    return bits;
+}
+
+pub fn oodrm_rev_ok(r: OodrmRevok) -> Bool {
+    return oodrm_rev_verify(r) == 7;
+}
+
+pub fn oodrm_rev_gate(preg: Int, d: OodrmDeleg, phash: Int) -> Bool {
+    let r: OodrmRevok = oodrm_rev_seal("gate", preg, phash);
+    return oodrm_rev_ok(r) && !oodrm_rev_live(r.preg, d.creg);
+}

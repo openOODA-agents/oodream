@@ -1,0 +1,41 @@
+// # oodream Metadata Registry
+//
+// Logline: Canonical metadata declarations for the standalone oodream host.
+//
+// Setup: Pure static metadata registry declaring component identity and description.
+//
+// Beats:
+//   1. Expose canonical component count and identifier (oodream).
+//   2. Normalize canonical identity and reject retired aliases.
+//   3. Expose category tag and human-readable description.
+
+pub fn oodrm_persona_count() -> Int {
+    return 1;
+}
+
+pub fn oodrm_persona_id(i: Int) -> String {
+    if i == 0 { return "oodream"; }
+    return "";
+}
+
+pub fn oodrm_persona_alias(id: String) -> String {
+    return "oodream";
+}
+
+pub fn oodrm_persona_normalize(name: String) -> String {
+    if name == "oodream" { return "oodream"; }
+    return "";
+}
+
+pub fn oodrm_persona_version(id: String) -> String {
+    return "0.4.1";
+}
+
+pub fn oodrm_persona_category(id: String) -> String {
+    return "AI";
+}
+
+pub fn oodrm_persona_desc(id: String) -> String {
+    return "Autonomous agent dreaming engine: offline memory consolidation, counterfactual scenario synthesis, and " +
+        "self-hosted LLM (:11435) connection discovery";
+}

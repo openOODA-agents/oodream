@@ -1,0 +1,97 @@
+// # oodream L0-L7 Capability Conformance Gate
+//
+// Logline: Verify end-to-end cross-layer invariant alignment under one PQC seal.
+//
+// Setup: Imports capreg, delegate, speculate, attest, quorum, and mix64 pages.
+//
+// Beats:
+//   1. Check the 64-bit register: hw/sw caps, epoch, rights, and badge.
+//   2. Bind frame MAC, causal root, quorum tally, and arena mark.
+//   3. Seal under ML-DSA-65; mask == 7 or invariant drift fails closed.
+
+import "core/state/capreg.oo";
+import "core/sec/delegate.oo";
+import "core/sec/speculate.oo";
+import "core/ipc/attest.oo";
+import "core/ipc/quorum.oo";
+import "oostd/sec/pqc.oo";
+
+type OodrmConf = struct {
+    magic: Int,
+    reg: Int,
+    fmac: Int,
+    phash: Int,
+    mark: Int,
+    tally: Int,
+    pk: String,
+    sig: String,
+    mac: Int
+};
+
+pub fn oodrm_conf_reg_ok(reg: Int) -> Bool {
+    let caps: Int = reg & ((1 << 32) - 1);
+    let badge: Int = (reg >> 32) & 255;
+    let rights: Int = (reg >> 40) & 255;
+    let epoch: Int = (reg >> 48) & 65535;
+    return caps != 0 && (caps & oodrm_cap_mask()) == caps &&
+        rights > 0 && epoch > 0;
+}
+
+pub fn oodrm_conf_tally(badge: Int) -> Int {
+    return oo_pqc_sha3_round(list_len(oodrm_quorum_badges(badge)), 7);
+}
+
+pub fn oodrm_conf_mac(reg: Int, fmac: Int, phash: Int, mark: Int,
+    tally: Int) -> Int {
+    return oo_pqc_hmac(oo_pqc_sha3_round(reg, fmac) ^
+        oo_pqc_sha3_round(phash, mark), tally);
+}
+
+pub fn oodrm_conf_msg(c: OodrmConf) -> String {
+    return "conf|" + c.reg.to_string() + "|" + c.fmac.to_string() +
+        "|" + c.phash.to_string() + "|" + c.mark.to_string() +
+        "|" + c.tally.to_string() + "|" + c.mac.to_string();
+}
+
+pub fn oodrm_conf_issue(signer: String, reg: Int, fmac: Int, phash: Int,
+    mark: Int, tally: Int) -> OodrmConf {
+    let mac: Int = oodrm_conf_mac(reg, fmac, phash, mark, tally);
+    let kp: List[String] = oodrm_attest_keypair(oodrm_attest_seed(signer + "-cf"));
+    let mut c: OodrmConf = OodrmConf { magic: 9421563, reg: reg, fmac: fmac,
+        phash: phash, mark: mark, tally: tally, pk: "", sig: "",
+        mac: mac };
+    if list_len(kp) == 2 {
+        c.pk = list_get(kp, 0);
+        c.sig = crypto_mldsa65_sign_internal(list_get(kp, 1),
+            oodrm_conf_msg(c), "");
+    }
+    return c;
+}
+
+pub fn oodrm_conf_verify(c: OodrmConf) -> Int {
+    let mut bits: Int = 0;
+    if c.magic == 9421563 && oodrm_conf_reg_ok(c.reg) && c.fmac != 0 &&
+        c.phash != 0 && (c.mark & 15) == 0 && c.tally != 0 &&
+        c.tally == oodrm_conf_tally((c.reg >> 32) & 255) && c.mac != 0 &&
+        c.mac == oodrm_conf_mac(c.reg, c.fmac, c.phash, c.mark, c.tally) {
+        bits = bits | 1;
+    }
+    if chars_len(c.pk) == 3904 && chars_len(c.sig) == 6618 {
+        bits = bits | 2;
+    }
+    if crypto_mldsa65_verify_internal(c.pk, oodrm_conf_msg(c), c.sig) == "OK" {
+        bits = bits | 4;
+    }
+    return bits;
+}
+
+pub fn oodrm_conf_ok(c: OodrmConf) -> Bool {
+    return oodrm_conf_verify(c) == 7;
+}
+
+pub fn oodrm_conf_gate(d: OodrmDeleg, fmac: Int, phash: Int, sck: OodrmSpecCk) -> Bool {
+    let badge: Int = (d.preg >> 32) & 255;
+    let c: OodrmConf = oodrm_conf_issue("conf", d.preg, fmac, phash, sck.mark,
+        oodrm_conf_tally(badge));
+    return oodrm_conf_ok(c);
+}
