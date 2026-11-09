@@ -38,7 +38,7 @@ pub fn oodrm_conf_reg_ok(reg: Int) -> Bool {
 }
 
 pub fn oodrm_conf_tally(badge: Int) -> Int {
-    return oo_pqc_sha3_round(list_len(oodrm_quorum_badges(badge)), 7);
+    return oo_pqc_sha3_round(list_len(oodrm_quorum_badges()), 7);
 }
 
 pub fn oodrm_conf_mac(reg: Int, fmac: Int, phash: Int, mark: Int,

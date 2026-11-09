@@ -125,7 +125,7 @@ fn oodrm_gate_chain(name: String, ver: String, mode: String) -> Result[Int, Stri
         return Err("audit chain failed");
     }
     if !oodrm_quorum_ok(oodrm_quorum_votes(name, envf.reg, oodrm_qmac(envf.seal, aud1.phash)),
-        oodrm_quorum_badges(oodrm_cap_badge()), envf.reg, envf.seal,
+        envf.reg, envf.seal,
         aud1.phash, 4) {
         println(name + " " + ver + ": quorum failed");
         return Err("quorum failed");

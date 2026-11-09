@@ -89,7 +89,7 @@ pub fn oodrm_proof_ok(p: OodrmProof) -> Bool {
 
 pub fn oodrm_proof_gate(d: OodrmDeleg, fmac: Int, sck: OodrmSpecCk) -> Bool {
     let badge: Int = (d.preg >> 32) & 255;
-    let tally: Int = oodrm_proof_tally(list_len(oodrm_quorum_badges(badge)));
+    let tally: Int = oodrm_proof_tally(list_len(oodrm_quorum_badges()));
     let p: OodrmProof = oodrm_proof_issue("gate", d.preg, d.creg, fmac, tally,
         sck.phash, 0, 0);
     return oodrm_proof_ok(p);

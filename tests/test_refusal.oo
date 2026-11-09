@@ -13,6 +13,7 @@ import "anchor.oo";
 import "cli/cli.oo";
 import "cli/persona/anchor.oo";
 import "core/sec/path_guard.oo";
+import "oostd/sec/quorum_grp/quorum.oo";
 
 fn assert_refuse(cond: Bool, label: String) -> Int {
     if cond {
@@ -51,6 +52,23 @@ fn test_cap_and_ipc_refusal() -> Int {
     f = f + assert_refuse(!oodrm_deleg_ok(bad_dg), "delegation privilege escalation refused");
     let rk: OodrmRevok = oodrm_rev_seal("oodream", oodrm_cap_reg64(3, 61), oodrm_sm64(5));
     f = f + assert_refuse(!oodrm_rev_live(rk.preg, dc), "revoked parent epoch kills child subtree");
+
+    let qreg: Int = oodrm_cap_reg64(3, 255);
+    let qkey: Int = oodrm_frame_key(oodrm_cap_badge());
+    let qfr: OodrmFrame = oodrm_frame_pack((1 << 40), qreg, 11, 22, 33, 44, 55, qkey);
+    let qph: Int = 1;
+    let qv: List[OodrmAttest] = oodrm_quorum_votes("oodream", qreg, oodrm_qmac(qfr.seal, qph));
+    let q0: OodrmAttest = list_get(qv, 0);
+    let mut qdup: List[OodrmAttest] = list_new();
+    qdup = list_push(qdup, q0);
+    qdup = list_push(qdup, list_get(qv, 1));
+    qdup = list_push(qdup, oodrm_attest_seal(oodrm_attest_keypair(
+        oodrm_attest_seed("oodream-q2")), "oodream",
+        oodrm_quorum_vote_reg(qreg, oo_quorum_badge(q0.reg)), oodrm_qmac(qfr.seal, qph)));
+    f = f + assert_refuse(oodrm_quorum_verify(qdup, qreg, qfr.seal, qph, 4) != 7,
+        "duplicate quorum hat badge refused by the standard counter");
+    f = f + assert_refuse(oodrm_quorum_verify(qv, qreg + (1 << 48), qfr.seal, qph, 4) != 7,
+        "split-brain quorum epoch refused");
     return f;
 }
 

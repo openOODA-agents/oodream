@@ -14,6 +14,7 @@ import "cli/persona/anchor.oo";
 import "cli/cli.oo";
 import "core/sec/path_guard.oo";
 import "oostd/core/app/agent/pair_programmer.oo";
+import "oostd/sec/quorum_grp/quorum.oo";
 
 fn assert_true(cond: Bool, label: String) -> Int {
     if cond {
@@ -62,6 +63,14 @@ fn test_sec_and_ipc() -> Int {
         oodrm_deleg_issue(dpr, oodrm_cap_mask(), oodrm_cap_badge() + 1), oodrm_sm64(5));
     f = f + assert_true(oodrm_deleg_ok(dg), "delegation seal verifies");
     f = f + assert_true(oodrm_rev_gate(dpr, dg, oodrm_sm64(5)), "revocation gate passes");
+
+    let qreg: Int = oodrm_cap_reg64(3, 255);
+    let qkey: Int = oodrm_frame_key(oodrm_cap_badge());
+    let qfr: OodrmFrame = oodrm_frame_pack((1 << 40), qreg, 11, 22, 33, 44, 55, qkey);
+    let qph: Int = 1;
+    let qv: List[OodrmAttest] = oodrm_quorum_votes("oodream", qreg, oodrm_qmac(qfr.seal, qph));
+    f = f + assert_true(oodrm_quorum_ok(qv, qreg, qfr.seal, qph, 4) &&
+        oo_quorum_count(oodrm_quorum_regs(qv), 1) == 3, "quorum verifies with three distinct hat badges");
     return f;
 }
 
