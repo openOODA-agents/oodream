@@ -52,6 +52,18 @@ pub fn oodrm_run_scan(fs: &FsReadCap, root: String) -> Int {
     return 0;
 }
 
+// The inference helper answers with an offline fallback string when no model
+// could be reached. That string is not an inference, so it must never satisfy
+// the success gate: a caller that reads the verdict would otherwise be told
+// that a synthesis happened when none did.
+pub fn oodrm_resp_is_inference(resp: String) -> Bool {
+    if chars_len(resp) == 0 { return false;
+    }
+    if str_contains(resp, "accepted_offline_fallback") { return false;
+    }
+    return true;
+}
+
 pub fn oodrm_run_domain(fs: &FsReadCap, env: &EnvCap, tcp: &TcpCap, root: String) -> Int {
     let mut m: DreamStore = oodrm_new(3);
     m = oodrm_put(m, "a", 1);
@@ -66,7 +78,7 @@ pub fn oodrm_run_domain(fs: &FsReadCap, env: &EnvCap, tcp: &TcpCap, root: String
     println("synthesize a=" + ga.to_string() + " d=" + gd.to_string() + " size=" + sz.to_string() +
         " llm_port=" + cfg.port.to_string());
     let mut _v: String = "verdict=fail";
-    if oodrm_verify(m) && chars_len(resp) > 0 { _v = "verdict=pass"; }
+    if oodrm_verify(m) && oodrm_resp_is_inference(resp) { _v = "verdict=pass"; }
     println(_v);
     return 0;
 }
@@ -90,7 +102,7 @@ pub fn oodrm_run_infer(tcp: &TcpCap, env: &EnvCap, args: List[String]) -> Int {
     println("oodream infer: model=" + cfg.model + " port=" + cfg.port.to_string());
     println(resp);
     let mut _v: String = "verdict=fail";
-    if chars_len(resp) > 0 { _v = "verdict=pass"; }
+    if oodrm_resp_is_inference(resp) { _v = "verdict=pass"; }
     println(_v);
     return 0;
 }
