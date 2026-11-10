@@ -11,25 +11,14 @@
 
 import "oostd/fs/file/fs_grp/fs_invariants.oo";
 
-fn oodrm_path_ctl(path: String) -> Bool {
-    let mut i: Int = 0;
-    while i < bytes_len(path) {
-        let c: Int = byte_at(path, i);
-        if c < 32 || c == 127 { return true; }
-        i = i + 1;
-    }
-    return false;
+pub fn oodrm_path_ctl(path: String) -> Bool {
+    return fs_path_has_ctl(path);
 }
 
 pub fn oodrm_path_ok(path: String) -> Bool {
-    if bytes_len(path) == 0 { return false; }
-    if fs_is_dotdot_traversal(path) == 1 { return false; }
-    if oodrm_path_ctl(path) { return false; }
-    return true;
+    return oo_path_ok(path);
 }
 
 pub fn oodrm_arg_ok(arg: String) -> Bool {
-    if fs_is_dotdot_traversal(arg) == 1 { return false; }
-    if oodrm_path_ctl(arg) { return false; }
-    return true;
+    return oo_arg_ok(arg);
 }

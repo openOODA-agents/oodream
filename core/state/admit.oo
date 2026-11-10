@@ -29,13 +29,9 @@ pub fn oodrm_cap_reg64(epoch: Int, rights: Int) -> Int {
 }
 
 pub fn oodrm_cap_admit(reg: Int, epoch: Int, req_rights: Int, req_caps: Int) -> Int {
-    if epoch < 0 || req_rights < 0 || req_rights > 255 { return 0 - 22; }
-    if epoch > 65535 { return 0 - 22; }
-    if req_caps < 0 { return 0 - 22; }
-    if req_caps > ((1 << 32) - 1) { return 0 - 22; }
-    if ((reg >> 48) & 65535) != (epoch & 65535) { return 0 - 13; }
-    if !oo_cap_reg64_check(reg, epoch, req_rights, req_caps) { return 0 - 13; }
-    return 0;
+    let v: Int = oo_cap_admit(reg, epoch, req_rights, req_caps);
+    if v == 0 - 1 { return 0 - 13; }
+    return v;
 }
 
 pub fn oodrm_cap_check(reg: Int, epoch: Int, rights: Int, need: Int) -> Bool {
