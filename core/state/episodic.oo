@@ -13,7 +13,7 @@ pub fn oodrm_art_header() -> String {
     return "OODRM-EP1";
 }
 
-fn oodrm_art_sum(lines: List[String]) -> Int {
+pub fn oodrm_art_sum(lines: List[String]) -> Int {
     let mut h: Int = 1469598103934665603 % 1000000009;
     let mut i: Int = 0;
     while i < list_len(lines) {
@@ -29,7 +29,7 @@ fn oodrm_art_sum(lines: List[String]) -> Int {
     return h;
 }
 
-fn oodrm_art_items(seed: Int) -> List[String] {
+pub fn oodrm_art_items(seed: Int) -> List[String] {
     let mut out: List[String] = list_new();
     let mut i: Int = 0;
     while i < 8 {
@@ -76,7 +76,7 @@ fn oodrm_art_parse(src: String) -> List[String] {
     }
     return list_new();
 }
-fn oodrm_art_write(fs_w: &FsWriteCap, path: String, body: String) -> Int {
+pub fn oodrm_art_write(fs_w: &FsWriteCap, path: String, body: String) -> Int {
     let w: Result[Void, String] = oo_write_file(fs_w, path, body);
     if w.is_err() {
         println("oomem dream: FAIL cannot write " + path);

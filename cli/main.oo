@@ -10,6 +10,7 @@
 //   3. Emit deterministic human or JSON verification results and run live filesystem scans.
 
 import "anchor.oo";
+import "component.oo";
 import "cli/cli.oo";
 import "cli/persona/anchor.oo";
 import "oostd/core/ooda.oo";

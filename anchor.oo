@@ -10,6 +10,7 @@
 //   3. Keep the public entry surface minimal and deterministic.
 
 import "core/state/anchor.oo";
+import "cli/component.oo";
 import "core/ipc/anchor.oo";
 import "core/sec/speculate.oo";
 import "core/sec/delegate.oo";
@@ -19,14 +20,3 @@ import "core/sec/heal.oo";
 import "core/conform/conformance.oo";
 import "core/conform/consttime.oo";
 
-pub fn oodrm_version() -> String {
-    return "0.5.0";
-}
-
-pub fn oodrm_name() -> String {
-    return "oodream";
-}
-
-pub fn oodrm_layer() -> String {
-    return "L7-agents";
-}

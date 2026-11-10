@@ -10,6 +10,7 @@
 //   3. Verify real episodic memory .oot persistence and round-trip verification on disk.
 
 import "anchor.oo";
+import "cli/component.oo";
 import "cli/persona/anchor.oo";
 import "cli/cli.oo";
 import "core/sec/path_guard.oo";

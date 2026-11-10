@@ -1,0 +1,22 @@
+// # oodream Component Identity
+//
+// Logline: Canonical component name, version, and layer accessors for oodream.
+//
+// Setup: Pure static metadata accessors surfaced through the CLI layer.
+//
+// Beats:
+//   1. Expose the canonical component name (oodream).
+//   2. Expose the shipped component version.
+//   3. Expose the L7 layer tag.
+
+pub fn oodrm_version() -> String {
+    return "0.5.0";
+}
+
+pub fn oodrm_name() -> String {
+    return "oodream";
+}
+
+pub fn oodrm_layer() -> String {
+    return "L7-agents";
+}
