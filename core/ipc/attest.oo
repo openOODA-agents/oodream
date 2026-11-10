@@ -9,6 +9,8 @@
 //   2. Seal register and frame seal under signature, digest, and keyed MAC.
 //   3. Verify cap-register, HMAC, and PQC bits; mask == 7 is required.
 
+import "oostd/sec/asymmetric/pqc/pqcseal.oo";
+
 type OodrmAttest = struct {
     magic: Int, reg: Int, fmac: Int, signer: String,
     pk: String, digest: String, sig: String, mac: String
@@ -19,10 +21,7 @@ pub fn oodrm_attest_seed(signer: String) -> String {
 }
 
 pub fn oodrm_attest_keypair(seed: String) -> List[String] {
-    let kp: String = crypto_mldsa65_keygen_internal(seed);
-    if chars_len(kp) != 11968 { return list_new(); }
-    return list_push(list_push(list_new(), str_slice(kp, 0, 3904)),
-        str_slice(kp, 3904, 11968));
+    return oo_pqcseal_keypair(seed);
 }
 
 pub fn oodrm_attest_msg(reg: Int, fmac: Int) -> String {
