@@ -13,7 +13,7 @@ import "anchor.oo";
 import "cli/component.oo";
 import "cli/persona/anchor.oo";
 import "cli/cli.oo";
-import "core/sec/pathctl.oo";
+import "core/sec/padmit.oo";
 import "oostd/core/app/agent/pair_programmer.oo";
 import "oostd/sec/quorum_grp/quorum.oo";
 
@@ -69,7 +69,7 @@ fn test_sec_and_ipc() -> Int {
     let qkey: Int = oodrm_frame_key(oodrm_cap_badge());
     let qfr: OodrmFrame = oodrm_frame_pack((1 << 40), qreg, 11, 22, 33, 44, 55, qkey);
     let qph: Int = 1;
-    let qv: List[OodrmAttest] = oodrm_quorum_votes("oodream", qreg, oodrm_qmac(qfr.seal, qph));
+    let qv: List[OodrmAttest] = oodrm_quorum_votes("oodream", qreg, oodrm_qfmac(qfr.seal, qph));
     f = f + assert_true(oodrm_quorum_ok(qv, qreg, qfr.seal, qph, 4) &&
         oo_quorum_count(oodrm_quorum_regs(qv), 1) == 3, "quorum verifies with three distinct hat badges");
     return f;

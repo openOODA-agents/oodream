@@ -9,9 +9,9 @@
 //   2. Bind frame MAC, causal root, stride, and timing drift budget.
 //   3. Seal under ML-DSA-65; mask == 7 or skew fails closed.
 
-import "core/state/capctl.oo";
-import "core/sec/delgate.oo";
-import "core/sec/specgate.oo";
+import "core/state/admit.oo";
+import "core/sec/dchain.oo";
+import "core/sec/specchain.oo";
 import "core/ipc/attest.oo";
 import "core/ipc/mix64.oo";
 

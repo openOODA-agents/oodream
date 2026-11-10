@@ -14,9 +14,9 @@
 //   7. Export the blackbox flight-recorder seal and replay page.
 
 import "mix64.oo";
-import "wissue.oo";
+import "wcert.oo";
 import "frame.oo";
 import "attest.oo";
 import "audit.oo";
-import "qverify.oo";
-import "bbseal.oo";
+import "qtally.oo";
+import "flight.oo";

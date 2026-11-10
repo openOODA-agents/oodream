@@ -9,11 +9,11 @@
 //   2. Bind frame MAC, causal root, quorum tally, and arena mark.
 //   3. Seal under ML-DSA-65; mask == 7 or invariant drift fails closed.
 
-import "core/state/capctl.oo";
-import "core/sec/delgate.oo";
-import "core/sec/specgate.oo";
+import "core/state/admit.oo";
+import "core/sec/dchain.oo";
+import "core/sec/specchain.oo";
 import "core/ipc/attest.oo";
-import "core/ipc/qverify.oo";
+import "core/ipc/qtally.oo";
 import "oostd/sec/pqc.oo";
 
 type OodrmConf = struct {

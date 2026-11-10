@@ -12,9 +12,9 @@
 import "core/state/anchor.oo";
 import "cli/component.oo";
 import "core/ipc/anchor.oo";
-import "core/sec/specgate.oo";
-import "core/sec/delgate.oo";
-import "core/sec/revctl.oo";
+import "core/sec/specchain.oo";
+import "core/sec/dchain.oo";
+import "core/sec/revlock.oo";
 import "core/sec/proofgate.oo";
 import "core/sec/heal.oo";
 import "core/conform/conformance.oo";

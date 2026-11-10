@@ -15,8 +15,8 @@ import "oostd/core/ooda.oo";
 import "oostd/core/app/agent/pair_programmer.oo";
 import "core/ipc/mix64.oo";
 import "core/ipc/frame.oo";
-import "core/ipc/wissue.oo";
-import "core/state/capctl.oo";
+import "core/ipc/wcert.oo";
+import "core/state/admit.oo";
 import "store.oo";
 
 pub fn oodrm_run_scan(fs: &FsReadCap, root: String) -> Int {

@@ -14,7 +14,7 @@ import "attest.oo";
 import "oostd/sec/quorum_grp/quorum.oo";
 import "oostd/sec/pqc.oo";
 
-pub fn oodrm_qmac(fmac: Int, phash: Int) -> Int {
+pub fn oodrm_qfmac(fmac: Int, phash: Int) -> Int {
     return oo_quorum_seal(fmac, 193, phash,
         oo_pqc_sha3_round(fmac, 1609587929392839161),
         oo_pqc_sha3_round(phash, 4132994306676758123));
@@ -86,7 +86,7 @@ pub fn oodrm_sigs_distinct(votes: List[OodrmAttest]) -> Bool {
 pub fn oodrm_quorum_verify(votes: List[OodrmAttest], reg: Int,
                     fmac: Int, phash: Int, members: Int) -> Int {
     let mut bits: Int = 0;
-    let qm: Int = oodrm_qmac(fmac, phash);
+    let qm: Int = oodrm_qfmac(fmac, phash);
     let cnt: Int = list_len(votes);
     let hats: List[Int] = oodrm_quorum_badges();
     let mut struct_ok: Bool = cnt == list_len(hats) && cnt >= 3 &&

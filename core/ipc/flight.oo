@@ -19,7 +19,7 @@ type OodrmFlight = struct {
     trace: Int, pk: String, sig: String
 };
 
-pub fn oodrm_bb_trap(op: Int, sig: Int) -> Int {
+pub fn oodrm_bb_op(op: Int, sig: Int) -> Int {
     return (oo_pqc_sha3_round(op, sig) & 255) | 1;
 }
 

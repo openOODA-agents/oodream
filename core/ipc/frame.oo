@@ -12,7 +12,7 @@
 import "oostd/hw/ipc/wire.oo";
 import "oostd/sec/pqc.oo";
 import "oostd/sec/warrant_grp/warrant.oo";
-import "wissue.oo";
+import "wcert.oo";
 
 type OodrmFrame = struct {
     w0: Int, reg: Int, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, seal: Int

@@ -9,7 +9,7 @@
 //   2. Issue a child warrant: strict cap subset, epoch+1, distinct scope badge.
 //   3. Seal the delegation bound to the parent Merkle-DAG root; verify mask == 7.
 
-import "core/ipc/wissue.oo";
+import "core/ipc/wcert.oo";
 import "core/ipc/attest.oo";
 import "oostd/sec/capreg.oo";
 import "oostd/sec/delegate_grp/delegate.oo";

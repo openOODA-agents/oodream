@@ -18,7 +18,7 @@ type OodrmSpecCk = struct {
     fmac: Int, mac: Int
 };
 
-pub fn oodrm_spec_mark(root: Int) -> Int {
+pub fn oodrm_spec_amark(root: Int) -> Int {
     return oo_pqc_sha3_round(root, 2246822519) & 2147483632;
 }
 
@@ -32,9 +32,9 @@ pub fn oodrm_spec_mac(ck: OodrmSpecCk) -> Int {
         oo_pqc_sha3_round(ck.phash, ck.reg ^ ck.fmac), 3202034522624059733);
 }
 
-pub fn oodrm_spec_new(reg: Int, fmac: Int, phash: Int) -> OodrmSpecCk {
+pub fn oodrm_spec_take(reg: Int, fmac: Int, phash: Int) -> OodrmSpecCk {
     let mut ck: OodrmSpecCk = OodrmSpecCk { magic: 8365041,
-        mark: oodrm_spec_mark(phash), phash: phash, reg: reg,
+        mark: oodrm_spec_amark(phash), phash: phash, reg: reg,
         fmac: fmac, mac: 0 };
     ck.mac = oodrm_spec_mac(ck);
     return ck;
@@ -43,7 +43,7 @@ pub fn oodrm_spec_new(reg: Int, fmac: Int, phash: Int) -> OodrmSpecCk {
 pub fn oodrm_spec_post(ck: OodrmSpecCk) -> OodrmSpecCk {
     let ph2: Int = oodrm_spec_root(ck.phash, ck.mark, ck.fmac);
     let mut post: OodrmSpecCk = OodrmSpecCk { magic: 8365041,
-        mark: oodrm_spec_mark(ph2), phash: ph2,
+        mark: oodrm_spec_amark(ph2), phash: ph2,
         reg: ck.reg, fmac: ck.fmac, mac: 0 };
     post.mac = oodrm_spec_mac(post);
     return post;
@@ -74,7 +74,7 @@ pub fn oodrm_spec_verify(ck: OodrmSpecCk, post: OodrmSpecCk, reg: Int, fmac: Int
     }
     if post.phash != ck.phash &&
         post.phash == oodrm_spec_root(ck.phash, ck.mark, ck.fmac) &&
-        post.mark == oodrm_spec_mark(post.phash) {
+        post.mark == oodrm_spec_amark(post.phash) {
         bits = bits | 2;
     }
     if ck.mac == oodrm_spec_mac(ck) && post.mac == oodrm_spec_mac(post) {

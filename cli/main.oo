@@ -14,8 +14,8 @@ import "component.oo";
 import "cli/cli.oo";
 import "cli/persona/anchor.oo";
 import "oostd/core/ooda.oo";
-import "cli/ui/palette.oo";
-import "core/sec/pathctl.oo";
+import "oostd/core/app/ui/ootheme.oo";
+import "core/sec/padmit.oo";
 
 fn run_oodrm_selftest() -> Bool {
     let mut m: DreamStore = oodrm_new(2);
@@ -125,19 +125,19 @@ fn oodrm_gate_chain(name: String, ver: String, mode: String) -> Result[Int, Stri
         println(name + " " + ver + ": audit chain failed");
         return Err("audit chain failed");
     }
-    if !oodrm_quorum_ok(oodrm_quorum_votes(name, envf.reg, oodrm_qmac(envf.seal, aud1.phash)),
+    if !oodrm_quorum_ok(oodrm_quorum_votes(name, envf.reg, oodrm_qfmac(envf.seal, aud1.phash)),
         envf.reg, envf.seal,
         aud1.phash, 4) {
         println(name + " " + ver + ": quorum failed");
         return Err("quorum failed");
     }
-    let bb0: OodrmFlight = oodrm_bb_seal(name, oodrm_bb_trap(oodrm_frame_op(envf), 7),
+    let bb0: OodrmFlight = oodrm_bb_seal(name, oodrm_bb_op(oodrm_frame_op(envf), 7),
         envf.reg, envf.seal, aud1.phash);
     if !oodrm_bb_ok(bb0, aud1.phash, envf.reg, envf.seal) {
         println(name + " " + ver + ": blackbox failed");
         return Err("blackbox failed");
     }
-    let sck: OodrmSpecCk = oodrm_spec_new(envf.reg, envf.seal, aud1.phash);
+    let sck: OodrmSpecCk = oodrm_spec_take(envf.reg, envf.seal, aud1.phash);
     if oodrm_spec_commit(sck, oodrm_spec_post(sck), envf.reg, envf.seal).phash == sck.phash {
         println(name + " " + ver + ": speculate failed");
         return Err("speculate failed");
