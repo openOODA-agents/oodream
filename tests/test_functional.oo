@@ -13,7 +13,7 @@ import "anchor.oo";
 import "cli/component.oo";
 import "cli/persona/anchor.oo";
 import "cli/cli.oo";
-import "core/sec/path_guard.oo";
+import "core/sec/pathctl.oo";
 import "oostd/core/app/agent/pair_programmer.oo";
 import "oostd/sec/quorum_grp/quorum.oo";
 

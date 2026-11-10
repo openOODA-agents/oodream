@@ -9,7 +9,7 @@
 //   2. Synthesize a deterministic patch inside the remaining gas budget.
 //   3. Re-verify under ML-DSA-65; zero findings and counterexamples commit.
 
-import "core/ipc/blackbox.oo";
+import "core/ipc/bbseal.oo";
 import "core/ipc/attest.oo";
 import "oostd/sec/pqc.oo";
 import "oostd/sec/audit.oo";

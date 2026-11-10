@@ -8,7 +8,7 @@
 //   3. Print the PASS line or fail closed with exit code 2.
 
 import "episodic.oo";
-import "core/sec/path_guard.oo";
+import "core/sec/pathctl.oo";
 
 fn oodrm_art_dir(args: List[String]) -> String {
     let mut i: Int = 0;

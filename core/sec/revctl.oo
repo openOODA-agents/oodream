@@ -9,8 +9,8 @@
 //   2. Lock delegation under SEAL (0x40); block mutation under IMMUTABLE (0x80).
 //   3. Seal the revocation record under ML-DSA-65; require mask == 7.
 
-import "core/sec/delegate.oo";
-import "core/ipc/warrant.oo";
+import "core/sec/delgate.oo";
+import "core/ipc/wissue.oo";
 import "core/ipc/attest.oo";
 import "oostd/sec/capreg.oo";
 import "oostd/sec/revoke_grp/revoke.oo";

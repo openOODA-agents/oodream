@@ -9,11 +9,11 @@
 //   2. Require a live delegated register under the current parent epoch.
 //   3. Seal the certificate under ML-DSA-65; require mask == 7.
 
-import "core/sec/delegate.oo";
-import "core/sec/revoke.oo";
-import "core/sec/speculate.oo";
+import "core/sec/delgate.oo";
+import "core/sec/revctl.oo";
+import "core/sec/specgate.oo";
 import "core/ipc/attest.oo";
-import "core/ipc/quorum.oo";
+import "core/ipc/qverify.oo";
 import "oostd/sec/pqc.oo";
 
 type OodrmProof = struct {

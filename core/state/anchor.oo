@@ -11,7 +11,7 @@
 
 import "metrics.oo";
 import "scan.oo";
-import "capreg.oo";
+import "capctl.oo";
 import "store.oo";
 import "journal.oo";
 import "episodic.oo";

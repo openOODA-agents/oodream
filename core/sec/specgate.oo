@@ -32,7 +32,7 @@ pub fn oodrm_spec_mac(ck: OodrmSpecCk) -> Int {
         oo_pqc_sha3_round(ck.phash, ck.reg ^ ck.fmac), 3202034522624059733);
 }
 
-pub fn oodrm_spec_ckpt(reg: Int, fmac: Int, phash: Int) -> OodrmSpecCk {
+pub fn oodrm_spec_new(reg: Int, fmac: Int, phash: Int) -> OodrmSpecCk {
     let mut ck: OodrmSpecCk = OodrmSpecCk { magic: 8365041,
         mark: oodrm_spec_mark(phash), phash: phash, reg: reg,
         fmac: fmac, mac: 0 };

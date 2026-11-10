@@ -14,8 +14,8 @@ import "component.oo";
 import "cli/cli.oo";
 import "cli/persona/anchor.oo";
 import "oostd/core/ooda.oo";
-import "cli/ui/ootheme.oo";
-import "core/sec/path_guard.oo";
+import "cli/ui/palette.oo";
+import "core/sec/pathctl.oo";
 
 fn run_oodrm_selftest() -> Bool {
     let mut m: DreamStore = oodrm_new(2);
@@ -137,7 +137,7 @@ fn oodrm_gate_chain(name: String, ver: String, mode: String) -> Result[Int, Stri
         println(name + " " + ver + ": blackbox failed");
         return Err("blackbox failed");
     }
-    let sck: OodrmSpecCk = oodrm_spec_ckpt(envf.reg, envf.seal, aud1.phash);
+    let sck: OodrmSpecCk = oodrm_spec_new(envf.reg, envf.seal, aud1.phash);
     if oodrm_spec_commit(sck, oodrm_spec_post(sck), envf.reg, envf.seal).phash == sck.phash {
         println(name + " " + ver + ": speculate failed");
         return Err("speculate failed");
