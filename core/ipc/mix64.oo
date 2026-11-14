@@ -37,6 +37,6 @@ pub fn oodrm_wmul(a: Int, b: Int) -> Int {
     return oodrm_wadd(oodrm_wadd(s0, s1 << 16), oodrm_wadd(s2 << 32, s3 << 48));
 }
 
-pub fn oodrm_sm64(x: Int) -> Int {
+pub fn oodrm_splitmix(x: Int) -> Int {
     return oo_pqc_sha3_round(x, 0 - 7046029254386353131);
 }

@@ -48,9 +48,9 @@ fn test_cap_and_ipc_refusal() -> Int {
     f = f + assert_refuse(!oodrm_frame_check(fr, key + 7), "foreign key IPC frame refused");
     let dpr: Int = oodrm_cap_reg64(3, 29);
     let dc: Int = oodrm_deleg_issue(dpr, oodrm_cap_mask(), oodrm_cap_badge() + 1);
-    let bad_dg: OodrmDeleg = oodrm_deleg_seal("oodream", dpr, dc | (1 << 30), oodrm_sm64(5));
+    let bad_dg: OodrmDeleg = oodrm_deleg_seal("oodream", dpr, dc | (1 << 30), oodrm_splitmix(5));
     f = f + assert_refuse(!oodrm_deleg_ok(bad_dg), "delegation privilege escalation refused");
-    let rk: OodrmRevok = oodrm_rev_seal("oodream", oodrm_cap_reg64(3, 61), oodrm_sm64(5));
+    let rk: OodrmRevok = oodrm_rev_seal("oodream", oodrm_cap_reg64(3, 61), oodrm_splitmix(5));
     f = f + assert_refuse(!oodrm_rev_live(rk.preg, dc), "revoked parent epoch kills child subtree");
 
     let qreg: Int = oodrm_cap_reg64(3, 255);

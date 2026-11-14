@@ -1,6 +1,6 @@
 // # Episodic Memory Persistence
 //
-// Logline: Persists and reloads deterministic episodic memory episodes as checksummed .oot artifacts under explicit Fs capabilities.
+// Logline: Persists/reloads episodic memory episodes as checksummed .oot artifacts under Fs caps.
 // Setup: FsReadCap authorizes reads and directory listing; FsWriteCap authorizes artifact writes; zero ambient authority.
 // Beats:
 //   1. Serialize domain records into a <HDR> document with a rolling checksum trailer.

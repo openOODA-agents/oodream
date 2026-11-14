@@ -49,7 +49,7 @@ pub fn oodrm_ct_reg_ok(reg: Int) -> Bool {
 
 pub fn oodrm_ct_mac(reg: Int, fmac: Int, phash: Int, stride: Int,
     drift: Int) -> Int {
-    return oodrm_sm64(oodrm_sm64(oodrm_sm64(reg ^ fmac) ^ oodrm_sm64(phash ^ stride))
+    return oodrm_splitmix(oodrm_splitmix(oodrm_splitmix(reg ^ fmac) ^ oodrm_splitmix(phash ^ stride))
         ^ drift);
 }
 
@@ -98,7 +98,7 @@ pub fn oodrm_ct_ok(c: OodrmCt, budget: Int) -> Bool {
 }
 
 pub fn oodrm_ct_gate(d: OodrmDeleg, fmac: Int, phash: Int, sck: OodrmSpecCk) -> Bool {
-    let drift: Int = oodrm_sm64(d.preg ^ sck.phash) & 63;
+    let drift: Int = oodrm_splitmix(d.preg ^ sck.phash) & 63;
     let c: OodrmCt = oodrm_ct_issue("ct", d.preg, fmac, phash, 64, drift);
     return oodrm_ct_ok(c, 64);
 }

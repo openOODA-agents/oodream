@@ -42,7 +42,8 @@ fn test_store_core(fs_r: &FsReadCap) -> Int {
     f = f + assert_true(oodrm_hash("") == 0 && oodrm_hash("a") == 1854425101799010507, "SHA3 round hash vector holds");
     f = f + assert_true(oodrm_about_sub_known("synthesize"), "about knows synthesize subcommand");
     f = f + assert_true(str_contains(oodrm_about_json(), "\"component\":\"oodream\""), "about json valid");
-    f = f + assert_true(list_len(oodrm_scan_files(fs_r, "/Projects/openOODA-agents/oodream/core")) >= 2, "scan_files finds pages");
+    f = f + assert_true(list_len(oodrm_scan_files(fs_r, "/Projects/openOODA-agents/oodream/core")) >= 2,
+        "scan_files finds pages");
     return f;
 }
 
@@ -61,9 +62,9 @@ fn test_sec_and_ipc() -> Int {
     f = f + assert_true(oodrm_attest_ok(att, list_get(akp, 1), reg, fr.seal), "ML-DSA-65 attestation verifies");
     let dpr: Int = oodrm_cap_reg64(3, 61);
     let dg: OodrmDeleg = oodrm_deleg_seal("oodream", dpr,
-        oodrm_deleg_issue(dpr, oodrm_cap_mask(), oodrm_cap_badge() + 1), oodrm_sm64(5));
+        oodrm_deleg_issue(dpr, oodrm_cap_mask(), oodrm_cap_badge() + 1), oodrm_splitmix(5));
     f = f + assert_true(oodrm_deleg_ok(dg), "delegation seal verifies");
-    f = f + assert_true(oodrm_rev_gate(dpr, dg, oodrm_sm64(5)), "revocation gate passes");
+    f = f + assert_true(oodrm_rev_gate(dpr, dg, oodrm_splitmix(5)), "revocation gate passes");
 
     let qreg: Int = oodrm_cap_reg64(3, 255);
     let qkey: Int = oodrm_frame_key(oodrm_cap_badge());

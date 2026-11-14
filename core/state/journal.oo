@@ -32,13 +32,13 @@ pub fn oodrm_run_scan(fs: &FsReadCap, root: String) -> Int {
         let mut t: OodaTurn = oo_ooda_init(oodrm_cap_reg64(1 + i,
             oodrm_warrant_rights("scan")), 1 + i,
             oodrm_warrant_rights("scan"), oodrm_cap_need("scan"), 8,
-            oodrm_sm64(i * 31 + 7));
-        t = oo_ooda_observe(t, oodrm_sm64(chars_len(src) + i), 1, t_sk, t_key);
+            oodrm_splitmix(i * 31 + 7));
+        t = oo_ooda_observe(t, oodrm_splitmix(chars_len(src) + i), 1, t_sk, t_key);
         let info: PageInfo = oodrm_page_info(src);
         m = oodrm_put(m, p, info.nlines);
-        t = oo_ooda_orient(t, oodrm_sm64(m.checksum + i), 1, t_sk, t_key);
+        t = oo_ooda_orient(t, oodrm_splitmix(m.checksum + i), 1, t_sk, t_key);
         t = oo_ooda_decide(t, info.nlines, 1, t_sk, t_key);
-        t = oo_ooda_act(t, oodrm_sm64(m.checksum * 17 + i), true, t_sk, t_key);
+        t = oo_ooda_act(t, oodrm_splitmix(m.checksum * 17 + i), true, t_sk, t_key);
         if !t.ok || !t.committed { tf = tf + 1; }
         i = i + 1;
     }
